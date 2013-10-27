@@ -35,8 +35,10 @@ if (Meteor.isServer) {
 			var val = value;
 			if (_.isObject(value)) {
 				if (cache.indexOf(value) !== -1) {
-					// Circular reference found, discard key
-					return '[CIRCULAR Reference]';
+					// Circular reference found
+					return {
+						____TYPE____: '[Circular]'
+					};
 				}
 				if (_.isFunction(value)) {
 					val = _.extend({}, value);
