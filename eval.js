@@ -32,17 +32,20 @@ if (Meteor.isServer) {
 	var prettyJSON = function(obj) {
 		var cache = [];
 		var json = JSON.stringify(obj, function(key, value) {
-			if (_.isFunction(value)) {
-				value = "[Function]";
-			} else if (_.isObject(value)) {
+			var val = value;
+			if (_.isObject(value)) {
 				if (cache.indexOf(value) !== -1) {
 					// Circular reference found, discard key
 					return;
 				}
+				if (_.isFunction(value)) {
+					val = _.extend({}, value);
+					val.____TYPE____ = "[Function]";
+				}
 				// Store value in our collection
 				cache.push(value);
 			}
-			return value;
+			return val;
 		});
 		cache = null; // Enable garbage collection TODO investigate
 		return json;
@@ -54,6 +57,7 @@ if (Meteor.isServer) {
 			var eval_time = Date.now();
 			try {
 				var result_raw = eval(expr);
+				//console.log(result_raw);
 				ServerEval._collection.insert({
 					eval_time: eval_time,
 					expr: expr,
