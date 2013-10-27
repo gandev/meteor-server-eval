@@ -22,7 +22,7 @@ if (Meteor.isClient) {
 
 if (Meteor.isServer) {
 	ServerEval._collection = new Meteor.Collection("eval-results", {
-		connection: null
+		connection: null // not persistent
 	});
 
 	Meteor.publish("eval-results", function() {
@@ -36,7 +36,7 @@ if (Meteor.isServer) {
 			if (_.isObject(value)) {
 				if (cache.indexOf(value) !== -1) {
 					// Circular reference found, discard key
-					return;
+					return '[CIRCULAR Reference]';
 				}
 				if (_.isFunction(value)) {
 					val = _.extend({}, value);
