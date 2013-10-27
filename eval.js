@@ -59,12 +59,13 @@ if (Meteor.isServer) {
 			var eval_time = Date.now();
 			try {
 				var result_raw = eval(expr);
+				var result_json = prettyJSON(result_raw);
 				//console.log(result_raw);
 				ServerEval._collection.insert({
 					eval_time: eval_time,
 					expr: expr,
 					type: typeof result_raw,
-					result: JSON.parse(prettyJSON(result_raw))
+					result: result_json && JSON.parse(result_json)
 				});
 			} catch (e) {
 				ServerEval._collection.insert({
