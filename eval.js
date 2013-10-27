@@ -16,12 +16,11 @@ ServerEval = {
 
 if (Meteor.isClient) {
 	ServerEval._collection = new Meteor.Collection("eval-results");
+
 	Meteor.subscribe("eval-results");
 }
 
 if (Meteor.isServer) {
-	var util = Npm.require('util');
-
 	ServerEval._collection = new Meteor.Collection("eval-results", {
 		connection: null
 	});
