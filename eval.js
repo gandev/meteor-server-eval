@@ -1,10 +1,14 @@
 ServerEval = {
+	version: "0.3",
 	results: function() {
-		return ServerEval._collection.find({}, {
+		return ServerEval._results.find({}, {
 			sort: {
 				eval_time: -1
 			}
 		});
+	},
+	metadata: function() {
+		return ServerEval._metadata.find();
 	},
 	eval: function(expr, package) {
 		Meteor.call('serverEval/eval', expr, package);
@@ -15,18 +19,33 @@ ServerEval = {
 };
 
 if (Meteor.isClient) {
-	ServerEval._collection = new Meteor.Collection("eval-results");
+	ServerEval._results = new Meteor.Collection("server-eval-results");
+	Meteor.subscribe("server-eval-results");
 
-	Meteor.subscribe("eval-results");
+	ServerEval._metadata = new Meteor.Collection("server-eval-metadata");
+	Meteor.subscribe("server-eval-metadata");
 }
 
 if (Meteor.isServer) {
-	ServerEval._collection = new Meteor.Collection("eval-results", {
+	ServerEval._results = new Meteor.Collection("server-eval-results", {
 		connection: null // not persistent
 	});
-
-	Meteor.publish("eval-results", function() {
+	Meteor.publish("server-eval-results", function() {
 		return ServerEval.results();
+	});
+
+	ServerEval._metadata = new Meteor.Collection("server-eval-metadata", {
+		connection: null // not persistent
+	});
+	Meteor.publish("server-eval-metadata", function() {
+		return ServerEval.metadata();
+	});
+
+	Meteor.startup(function() {
+		ServerEval._metadata.insert({
+			version: ServerEval.version,
+			packages: _.keys(Package)
+		});
 	});
 
 	var prettyJSON = function(obj) {
@@ -87,7 +106,7 @@ if (Meteor.isServer) {
 			} catch (e) {
 				result_json = prettyJSON(e);
 			}
-			ServerEval._collection.insert({
+			ServerEval._results.insert({
 				eval_time: eval_time,
 				expr: expr,
 				scope: scope,
@@ -95,7 +114,7 @@ if (Meteor.isServer) {
 			});
 		},
 		'serverEval/clear': function() {
-			ServerEval._collection.remove({});
+			ServerEval._results.remove({});
 		}
 	});
 }
