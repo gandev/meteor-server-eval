@@ -32,22 +32,28 @@ if (Meteor.isServer) {
 	var prettyJSON = function(obj) {
 		var cache = [];
 		var json = JSON.stringify(obj, function(key, value) {
-			var val = value;
-			if (_.isObject(value)) {
+			var prettyValue = value;
+			if (value instanceof Error) {
+				prettyValue = {
+					____TYPE____: '[Error]',
+					err: obj.toString(),
+					stack: obj.stack
+				};
+			} else if (_.isObject(value)) {
 				if (cache.indexOf(value) !== -1) {
 					// Circular reference found
-					return {
+					prettyValue = {
 						____TYPE____: '[Circular]'
 					};
 				}
 				if (_.isFunction(value)) {
-					val = _.extend({}, value);
-					val.____TYPE____ = "[Function]";
+					prettyValue = _.extend({}, value);
+					prettyValue.____TYPE____ = "[Function]";
 				}
 				// Store value in our collection
 				cache.push(value);
 			}
-			return val;
+			return prettyValue;
 		});
 		cache = null; // Enable garbage collection TODO investigate
 		return json;
@@ -58,6 +64,7 @@ if (Meteor.isServer) {
 			if (!expr || expr.length === 0) return;
 			var eval_time = Date.now();
 			var scope = "global";
+			var result_json;
 			try {
 				var result_raw;
 				var _eval = eval;
@@ -76,23 +83,16 @@ if (Meteor.isServer) {
 				}
 
 				result_raw = _eval(expr);
-				var result_json = prettyJSON(result_raw);
-				//console.log(result_raw);
-				ServerEval._collection.insert({
-					eval_time: eval_time,
-					expr: expr,
-					scope: scope,
-					result: result_json && JSON.parse(result_json)
-				});
+				result_json = prettyJSON(result_raw);
 			} catch (e) {
-				ServerEval._collection.insert({
-					eval_time: eval_time,
-					expr: expr,
-					scope: scope,
-					error: true,
-					result: e.toString()
-				});
+				result_json = prettyJSON(e);
 			}
+			ServerEval._collection.insert({
+				eval_time: eval_time,
+				expr: expr,
+				scope: scope,
+				result: result_json && JSON.parse(result_json)
+			});
 		},
 		'serverEval/clear': function() {
 			ServerEval._collection.remove({});
