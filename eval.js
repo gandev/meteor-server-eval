@@ -48,6 +48,8 @@ if (Meteor.isServer) {
 		});
 	});
 
+	//create json from object, filters circular dependencies 
+	//and adds custom ____TYPE___ property
 	var prettyJSON = function(obj) {
 		var cache = [];
 		var json = JSON.stringify(obj, function(key, value) {
@@ -56,7 +58,7 @@ if (Meteor.isServer) {
 				prettyValue = {
 					____TYPE____: '[Error]',
 					err: obj.toString(),
-					stack: obj.stack
+					stack: obj.stack.split("\n")
 				};
 			} else if (_.isObject(value)) {
 				if (cache.indexOf(value) !== -1) {
@@ -64,8 +66,7 @@ if (Meteor.isServer) {
 					prettyValue = {
 						____TYPE____: '[Circular]'
 					};
-				}
-				if (_.isFunction(value)) {
+				} else if (_.isFunction(value)) {
 					prettyValue = _.extend({}, value);
 					prettyValue.____TYPE____ = "[Function]";
 				}
@@ -81,12 +82,14 @@ if (Meteor.isServer) {
 	Meteor.methods({
 		'serverEval/eval': function(expr, package) {
 			if (!expr || expr.length === 0) return;
+
 			var eval_time = Date.now();
 			var scope = "global";
 			var result_json;
 			try {
 				var result_raw;
 				var _eval = eval;
+				//check if eval function in package scope available
 				if (Package[package]) {
 					var package_eval = _.find(_.values(Package[package]), function(exprt) {
 						return !!exprt.__serverEval;
@@ -100,12 +103,13 @@ if (Meteor.isServer) {
 				} else if (package) {
 					scope = "global[no " + package + " package]";
 				}
-
+				//run eval in package scope / fallback to eval in current scope (called global)
 				result_raw = _eval(expr);
 				result_json = prettyJSON(result_raw);
 			} catch (e) {
 				result_json = prettyJSON(e);
 			}
+
 			ServerEval._results.insert({
 				eval_time: eval_time,
 				expr: expr,
