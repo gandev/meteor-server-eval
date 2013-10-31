@@ -42,9 +42,14 @@ if (Meteor.isServer) {
 	});
 
 	Meteor.startup(function() {
+		var packages = _.keys(Package);
+		var supported_packages = _.filter(packages, function(pkg) {
+			return !!findEval(pkg);
+		});
 		ServerEval._metadata.insert({
 			version: ServerEval.version,
-			packages: _.keys(Package)
+			packages: packages,
+			supported_packages: supported_packages
 		});
 	});
 
@@ -55,10 +60,11 @@ if (Meteor.isServer) {
 		var json = JSON.stringify(obj, function(key, value) {
 			var prettyValue = value;
 			if (value instanceof Error) {
+				var stacktrace = value.stack && value.stack.split("\n") || [];
 				prettyValue = {
 					____TYPE____: '[Error]',
-					err: obj.toString(),
-					stack: obj.stack.split("\n")
+					err: value.toString(),
+					stack: stacktrace.slice(1)
 				};
 			} else if (_.isObject(value)) {
 				if (cache.indexOf(value) !== -1) {
@@ -79,6 +85,17 @@ if (Meteor.isServer) {
 		return json;
 	};
 
+
+	//checks if eval function in package scope available
+	var findEval = function(package) {
+		if (Package[package]) {
+			var supported_package = _.find(_.values(Package[package]), function(exprt) {
+				return !!exprt.__serverEval;
+			});
+			return supported_package && supported_package.__serverEval;
+		}
+	};
+
 	Meteor.methods({
 		'serverEval/eval': function(expr, package) {
 			if (!expr || expr.length === 0) return;
@@ -89,13 +106,10 @@ if (Meteor.isServer) {
 			try {
 				var result_raw;
 				var _eval = eval;
-				//check if eval function in package scope available
 				if (Package[package]) {
-					var package_eval = _.find(_.values(Package[package]), function(exprt) {
-						return !!exprt.__serverEval;
-					});
-					if (package_eval && package_eval.__serverEval) {
-						_eval = package_eval.__serverEval;
+					var scoped_eval = findEval(package);
+					if (scoped_eval) {
+						_eval = scoped_eval; //use scoped eval
 						scope = package;
 					} else {
 						scope = "global[" + package + " not supported]";
