@@ -57,34 +57,68 @@ if (Meteor.isServer) {
 	//and adds custom ____TYPE___ property
 	var prettyJSON = function(obj) {
 		var cache = [];
-		var json = JSON.stringify(obj, function(key, value) {
-			var prettyValue = value;
-			if (value instanceof Error) {
-				var stacktrace = value.stack && value.stack.split("\n") || [];
-				prettyValue = {
+		var path = [];
+
+		var addToCache = function(value) {
+			cache.push({
+				path: path.join('.'),
+				value: value
+			});
+		};
+
+		var cached = function(value) {
+			return _.find(cache, function(obj) {
+				return obj.value === value;
+			});
+		};
+
+		var formatObject = function(src_obj) {
+			var dst_obj = {};
+
+			if (src_obj instanceof Error) {
+				var stacktrace = src_obj.stack && src_obj.stack.split("\n") || [];
+				dst_obj = {
 					____TYPE____: '[Error]',
-					err: value.toString(),
+					err: src_obj.toString(),
 					stack: stacktrace.slice(1)
 				};
-			} else if (_.isObject(value)) {
-				if (cache.indexOf(value) !== -1) {
-					// Circular reference found
-					prettyValue = {
-						____TYPE____: '[Circular]'
-					};
-				} else if (_.isFunction(value)) {
-					prettyValue = _.extend({}, value);
-					prettyValue.____TYPE____ = "[Function]";
-				}
-				// Store value in our collection
-				cache.push(value);
+				return dst_obj;
 			}
-			return prettyValue;
-		});
-		cache = null; // Enable garbage collection TODO investigate
-		return json;
-	};
 
+			if (_.isFunction(src_obj)) {
+				src_obj = _.extend({}, src_obj);
+				src_obj.____TYPE____ = "[Function]";
+			}
+
+			_.each(src_obj, function(value, key) {
+				path.push(key);
+
+				var _cached = cached(value);
+				if (_cached) {
+					//remove futures!? TODO consider
+					if (key !== "future") {
+						// Circular reference found
+						dst_obj[key] = {
+							____TYPE____: '[Circular]',
+							path: _cached.path
+						};
+					}
+				} else {
+					if (_.isObject(value)) {
+						addToCache(value);
+						dst_obj[key] = formatObject(value);
+					} else {
+						dst_obj[key] = value;
+					}
+				}
+
+				path.pop();
+			});
+			return dst_obj;
+		};
+
+		return formatObject(obj);
+	};
 
 	//checks if eval function in package scope available
 	var findEval = function(package) {
@@ -128,7 +162,7 @@ if (Meteor.isServer) {
 				eval_time: eval_time,
 				expr: expr,
 				scope: scope,
-				result: result_json && JSON.parse(result_json)
+				result: result_json // && JSON.parse(result_json)
 			});
 		},
 		'serverEval/clear': function() {
