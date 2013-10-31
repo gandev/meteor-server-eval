@@ -55,7 +55,7 @@ if (Meteor.isServer) {
 
 	//create json from object, filters circular dependencies 
 	//and adds custom ____TYPE___ property
-	var prettyJSON = function(obj) {
+	var prettyResult = function(obj) {
 		var cache = [];
 		var path = [];
 
@@ -73,8 +73,9 @@ if (Meteor.isServer) {
 		};
 
 		var formatObject = function(src_obj) {
-			var dst_obj = {};
+			var dst_obj = _.isArray(src_obj) ? [] : {};
 
+			//Errors - format stacktrace and create new error object
 			if (src_obj instanceof Error) {
 				var stacktrace = src_obj.stack && src_obj.stack.split("\n") || [];
 				dst_obj = {
@@ -85,11 +86,13 @@ if (Meteor.isServer) {
 				return dst_obj;
 			}
 
+			//Functions - convert in object
 			if (_.isFunction(src_obj)) {
 				src_obj = _.extend({}, src_obj);
 				src_obj.____TYPE____ = "[Function]";
 			}
 
+			//walk the object tree recursively
 			_.each(src_obj, function(value, key) {
 				path.push(key);
 
@@ -136,33 +139,34 @@ if (Meteor.isServer) {
 
 			var eval_time = Date.now();
 			var scope = "global";
-			var result_json;
-			try {
-				var result_raw;
-				var _eval = eval;
-				if (Package[package]) {
-					var scoped_eval = findEval(package);
-					if (scoped_eval) {
-						_eval = scoped_eval; //use scoped eval
-						scope = package;
-					} else {
-						scope = "global[" + package + " not supported]";
-					}
-				} else if (package) {
-					scope = "global[no " + package + " package]";
+			var result;
+			var _eval = eval;
+
+			if (Package[package]) {
+				var scoped_eval = findEval(package);
+				if (scoped_eval) {
+					_eval = scoped_eval; //use scoped eval
+					scope = package;
+				} else {
+					scope = "global[" + package + " not supported]";
 				}
+			} else if (package) {
+				scope = "global[no " + package + " package]";
+			}
+
+			try {
 				//run eval in package scope / fallback to eval in current scope (called global)
-				result_raw = _eval(expr);
-				result_json = prettyJSON(result_raw);
+				result = _eval(expr);
 			} catch (e) {
-				result_json = prettyJSON(e);
+				//error in eval
+				result = e;
 			}
 
 			ServerEval._results.insert({
 				eval_time: eval_time,
 				expr: expr,
 				scope: scope,
-				result: result_json // && JSON.parse(result_json)
+				result: prettyResult(result)
 			});
 		},
 		'serverEval/clear': function() {
