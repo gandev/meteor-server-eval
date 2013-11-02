@@ -145,12 +145,11 @@ if (Meteor.isServer) {
 		var nicer_obj = formatObject(obj);
 
 		current_path = [];
-
-		cache = _.sortBy(cache, function(cached_value) {
-			return -cached_value.path.length;
-		});
-
-		var reorganizeCirculars = function(__obj) {
+		var reorganizeCirculars = function() {
+			//sort cache longest paths first
+			cache = _.sortBy(cache, function(cached_value) {
+				return -cached_value.path.length;
+			});
 			_.each(cache, function(cached_value) {
 				var shortest = cached_value.shortest_path;
 				if (!shortest) return; //already the shortest path
@@ -166,7 +165,7 @@ if (Meteor.isServer) {
 						current_path.push(key);
 
 						if (_.isObject(value)) {
-							if (value.____TYPE____ === '[Circular]' &&
+							if (_obj !== formatted && value.____TYPE____ === '[Circular]' &&
 								_.isEqual(current_path, shortest)) {
 								_obj[key] = formatted;
 							} else if (_.isEqual(cached_value.path, current_path) ||
@@ -185,10 +184,10 @@ if (Meteor.isServer) {
 					});
 				};
 				patchCirculars(formatted);
-				patchCirculars(__obj);
+				patchCirculars(nicer_obj);
 			});
 		};
-		reorganizeCirculars(nicer_obj);
+		reorganizeCirculars();
 
 		return nicer_obj;
 	};
