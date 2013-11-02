@@ -121,6 +121,7 @@ if (Meteor.isServer) {
 							path: _cached.path.join(".")
 						};
 
+						//TODO prioritize e.g. Meteor as shortest Path !?
 						if (!_cached.shortest_path && _cached.path.length > current_path.length ||
 							_cached.shortest_path && _cached.shortest_path.length > current_path.length) {
 							//no shortest path and current path shorter than cached or
@@ -167,15 +168,19 @@ if (Meteor.isServer) {
 						if (_.isObject(value)) {
 							if (_obj !== formatted && value.____TYPE____ === '[Circular]' &&
 								_.isEqual(current_path, shortest)) {
+								//patch formatted value in shortest path
 								_obj[key] = formatted;
 							} else if (_.isEqual(cached_value.path, current_path) ||
 								value.____TYPE____ === '[Circular]' &&
 								_.isEqual(value.path.split("."), cached_value.path)) {
+								//patch all occurences of the cached circular with shortest path (old value included)
 								_obj[key] = circular;
 							} else if (value.____TYPE____ === '[Circular]' &&
 								value.path.indexOf(cached_value.path.join(".")) === 0) {
+								//replace circulars starting with cached path with shortest path
 								value.path = value.path.replace(cached_value.path.join("."), shortest.join("."));
 							} else {
+								//recursive call with other objects
 								patchCirculars(value);
 							}
 						}
@@ -207,10 +212,11 @@ if (Meteor.isServer) {
 			if (!expr || expr.length === 0) return;
 
 			var eval_time = Date.now();
-			var scope = "global";
+			var scope = "server-eval";
 			var result;
 			var _eval = function(expr) {
-				return eval(expr); //TODO investigate, without wrapping function other scope
+				//TODO investigate, without wrapping function other scope e.g. Npm undefined
+				return eval(expr);
 			};
 
 			//determine scope
@@ -220,14 +226,14 @@ if (Meteor.isServer) {
 					_eval = scoped_eval; //use scoped eval
 					scope = package;
 				} else {
-					scope = "global[" + package + " not supported]";
+					scope = "server-eval[" + package + " not supported]";
 				}
 			} else if (package) {
-				scope = "global[no " + package + " package]";
+				scope = "server-eval[no " + package + " package]";
 			}
 
 			try {
-				//run eval in package scope / fallback to eval in current scope (called global)
+				//run eval in package scope / fallback to eval in current scope
 				result = _eval(expr);
 			} catch (e) {
 				//error in eval
