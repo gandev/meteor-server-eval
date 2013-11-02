@@ -54,16 +54,20 @@ if (Meteor.isServer) {
 	});
 
 	//create json from object, filters circular dependencies 
-	//and adds custom ____TYPE___ property
+	//and adds custom ____TYPE____ property
 	var prettyResult = function(obj) {
+		if (!_.isObject(obj)) return obj;
+
 		var cache = [];
-		var path = [];
+		var current_path = [];
 
 		var addToCache = function(value) {
-			cache.push({
-				path: path.join('.'),
+			var cache_obj = {
+				path: _.clone(current_path),
 				value: value
-			});
+			};
+			cache.push(cache_obj);
+			return cache_obj;
 		};
 
 		var cached = function(value) {
@@ -72,8 +76,18 @@ if (Meteor.isServer) {
 			});
 		};
 
+		//TODO investigate a more reliable solution
+		var getConstructorName = function(obj) {
+			var name = obj.constructor && obj.constructor.name;
+			return name !== "Object" && name || "";
+		};
+
 		var formatObject = function(src_obj) {
 			var dst_obj = _.isArray(src_obj) ? [] : {};
+
+			if (getConstructorName(src_obj)) {
+				dst_obj.____TYPE____ = "[Object][" + getConstructorName(src_obj) + "]";
+			}
 
 			//Errors - format stacktrace and create new error object
 			if (src_obj instanceof Error) {
@@ -93,34 +107,90 @@ if (Meteor.isServer) {
 			}
 
 			//walk the object tree recursively
+			var _cached;
 			_.each(src_obj, function(value, key) {
-				path.push(key);
+				current_path.push(key);
 
-				var _cached = cached(value);
+				_cached = cached(value);
 				if (_cached) {
 					//remove futures!? TODO consider
 					if (key !== "future") {
 						// Circular reference found
 						dst_obj[key] = {
 							____TYPE____: '[Circular]',
-							path: _cached.path
+							path: _cached.path.join(".")
 						};
+
+						if (!_cached.shortest_path && _cached.path.length > current_path.length ||
+							_cached.shortest_path && _cached.shortest_path.length > current_path.length) {
+							//no shortest path and current path shorter than cached or
+							//shortest path greater than current
+							_cached.shortest_path = _.clone(current_path);
+						}
 					}
 				} else {
 					if (_.isObject(value)) {
-						addToCache(value);
+						_cached = addToCache(value);
 						dst_obj[key] = formatObject(value);
+						_cached.formatted_value = dst_obj[key];
 					} else {
 						dst_obj[key] = value;
 					}
 				}
 
-				path.pop();
+				current_path.pop();
 			});
 			return dst_obj;
 		};
+		var nicer_obj = formatObject(obj);
 
-		return formatObject(obj);
+		current_path = [];
+
+		cache = _.sortBy(cache, function(cached_value) {
+			return -cached_value.path.length;
+		});
+
+		var reorganizeCirculars = function(__obj) {
+			_.each(cache, function(cached_value) {
+				var shortest = cached_value.shortest_path;
+				if (!shortest) return; //already the shortest path
+
+				var formatted = cached_value.formatted_value;
+				var circular = {
+					____TYPE____: '[Circular]',
+					path: shortest.join(".")
+				};
+
+				var patchCirculars = function(_obj) {
+					_.each(_obj, function(value, key) {
+						current_path.push(key);
+
+						if (_.isObject(value)) {
+							if (value.____TYPE____ === '[Circular]' &&
+								_.isEqual(current_path, shortest)) {
+								_obj[key] = formatted;
+							} else if (_.isEqual(cached_value.path, current_path) ||
+								value.____TYPE____ === '[Circular]' &&
+								_.isEqual(value.path.split("."), cached_value.path)) {
+								_obj[key] = circular;
+							} else if (value.____TYPE____ === '[Circular]' &&
+								value.path.indexOf(cached_value.path.join(".")) === 0) {
+								value.path = value.path.replace(cached_value.path.join("."), shortest.join("."));
+							} else {
+								patchCirculars(value);
+							}
+						}
+
+						current_path.pop();
+					});
+				};
+				patchCirculars(formatted);
+				patchCirculars(__obj);
+			});
+		};
+		reorganizeCirculars(nicer_obj);
+
+		return nicer_obj;
 	};
 
 	//checks if eval function in package scope available
@@ -140,8 +210,11 @@ if (Meteor.isServer) {
 			var eval_time = Date.now();
 			var scope = "global";
 			var result;
-			var _eval = eval;
+			var _eval = function(expr) {
+				return eval(expr); //TODO investigate, without wrapping function other scope
+			};
 
+			//determine scope
 			if (Package[package]) {
 				var scoped_eval = findEval(package);
 				if (scoped_eval) {
