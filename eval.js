@@ -130,7 +130,21 @@ if (Meteor.isServer) {
 						}
 					}
 				} else {
-					if (_.isObject(value)) {
+					var current_path_joined = current_path.join(".");
+					if ( /* in collection cursor */
+						current_path_joined.indexOf("ServerEval._results._collection") >= 0 && key === "docs" ||
+						/* in Meteor.server.sessions */
+						current_path_joined.indexOf("collectionViews.server-eval-results") >= 0 && key === "documents") {
+						console.log(current_path_joined);
+						//evaluating ServerEval (e.g. with Meteor, Package, ServerEval, ...)
+						//ends up adding all results multiple times to the result and again
+						//so it's important to toss them away
+						//TODO maybe toss all internals away like metadata but i wan't to remove as little as possible
+						//TODO also consider someone evaluating these things without context... maybe dont allow in Console!?
+						dst_obj[key] = {
+							____TYPE____: '[Internal]'
+						};
+					} else if (_.isObject(value)) {
 						_cached = addToCache(value);
 						dst_obj[key] = formatObject(value);
 						_cached.formatted_value = dst_obj[key];
