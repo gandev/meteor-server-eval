@@ -233,6 +233,7 @@ if (Meteor.isServer) {
 				scope = "server-eval[no " + package + " package]";
 			}
 
+			var eval_exec_time = Date.now();
 			try {
 				//run eval in package scope / fallback to eval in current scope
 				result = _eval(expr);
@@ -240,6 +241,7 @@ if (Meteor.isServer) {
 				//error in eval
 				result = e;
 			}
+			eval_exec_time = Date.now() - eval_exec_time;
 
 			//TODO get rid of some data automatically!?
 			//because of serious performance issue with really big results
@@ -247,6 +249,7 @@ if (Meteor.isServer) {
 			//console.time("insert new result time");
 			ServerEval._results.insert({
 				eval_time: eval_time,
+				eval_exec_time: eval_exec_time,
 				expr: expr,
 				scope: scope,
 				result: prettyResult(result)
