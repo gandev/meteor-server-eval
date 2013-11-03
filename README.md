@@ -5,6 +5,7 @@ meteor-server-eval
 
 *    exports: "ServerEval" symbol which provides the following functions:
      - .results() / returns a Meteor.Collection cursor with all evaluation results
+     - .metadata() / returns a Meteor.Collection cursor with various infos like a list with supported packages
      - .eval(expression, package) / calls "eval" function with the given expression in package context if supported
      - .clear() / removes all evaluation results
 
@@ -19,7 +20,7 @@ meteor-server-eval
           	return eval(expression);
           };
           
-     Custom has to be a arbitrary Package.export in your package.js on_use...
+     Custom has to be a arbitrary api.export("...") in your package.js Package.on_use(function(api){})
 
 
      maybe if pull request [https://github.com/meteor/meteor/pull/1207](https://github.com/meteor/meteor/pull/1207)
