@@ -27,18 +27,18 @@ if (Meteor.isClient) {
 }
 
 if (Meteor.isServer) {
-	ServerEval._results = new Meteor.Collection("server-eval-results", {
-		connection: null // not persistent
-	});
-	Meteor.publish("server-eval-results", function() {
-		return ServerEval.results();
-	});
-
 	ServerEval._metadata = new Meteor.Collection("server-eval-metadata", {
 		connection: null // not persistent
 	});
 	Meteor.publish("server-eval-metadata", function() {
 		return ServerEval.metadata();
+	});
+
+	ServerEval._results = new Meteor.Collection("server-eval-results", {
+		connection: null // not persistent
+	});
+	Meteor.publish("server-eval-results", function() {
+		return ServerEval.results();
 	});
 
 	Meteor.startup(function() {
@@ -55,8 +55,8 @@ if (Meteor.isServer) {
 
 	//create json from object, filters circular dependencies 
 	//and adds custom ____TYPE____ property
-	var prettyResult = function(obj) {
-		if (!_.isObject(obj)) return obj;
+	var prettyResult = function(result) {
+		if (!_.isObject(result)) return result;
 
 		var cache = [];
 		var current_path = [];
@@ -143,7 +143,7 @@ if (Meteor.isServer) {
 			});
 			return dst_obj;
 		};
-		var nicer_obj = formatObject(obj);
+		var nicer_obj = formatObject(result);
 
 		current_path = [];
 		var reorganizeCirculars = function() {
@@ -192,8 +192,9 @@ if (Meteor.isServer) {
 				patchCirculars(nicer_obj);
 			});
 		};
+		//console.time("pretty-print-time");
 		reorganizeCirculars();
-
+		//console.timeEnd("pretty-print-time");
 		return nicer_obj;
 	};
 
@@ -240,12 +241,17 @@ if (Meteor.isServer) {
 				result = e;
 			}
 
+			//TODO get rid of some data automatically!?
+			//because of serious performance issue with really big results
+			//
+			//console.time("insert new result time");
 			ServerEval._results.insert({
 				eval_time: eval_time,
 				expr: expr,
 				scope: scope,
 				result: prettyResult(result)
 			});
+			//console.timeEnd("insert new result time");
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});
