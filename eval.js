@@ -135,7 +135,6 @@ if (Meteor.isServer) {
 						current_path_joined.indexOf("ServerEval._results._collection") >= 0 && key === "docs" ||
 						/* in Meteor.server.sessions */
 						current_path_joined.indexOf("collectionViews.server-eval-results") >= 0 && key === "documents") {
-						console.log(current_path_joined);
 						//evaluating ServerEval (e.g. with Meteor, Package, ServerEval, ...)
 						//ends up adding all results multiple times to the result and again
 						//so it's important to toss them away
