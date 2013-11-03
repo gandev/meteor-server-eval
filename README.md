@@ -13,8 +13,7 @@ meteor-server-eval
      - 'serverEval/eval' / parameter is an expression string as well as the package name it should run in
      - 'serverEval/clear'
 
-*    Unfortunally,
-     to use the package scope functionality you have to add following code snippet to your package:
+*    Unfortunately, to use the package scope functionality you have to add following code snippet to your package:
 
           Custom.__serverEval = function(expression) {
           	return eval(expression);
