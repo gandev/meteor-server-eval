@@ -1,5 +1,5 @@
 ServerEval = {
-	version: "0.3",
+	version: "0.4",
 	results: function() {
 		return ServerEval._results.find({}, {
 			sort: {
@@ -12,6 +12,9 @@ ServerEval = {
 	},
 	watch: function() {
 		return ServerEval._watch.find();
+	},
+	removeWatch: function(id) {
+		Meteor.call('serverEval/removeWatch', id);
 	},
 	eval: function(expr, options) {
 		Meteor.call('serverEval/eval', expr, options);
@@ -57,13 +60,11 @@ if (Meteor.isServer) {
 	Meteor.startup(function() {
 		//check for localhost to force dev development over production
 		if (__meteor_runtime_config__) {
-			if (__meteor_runtime_config__.ROOT_URL.indexOf('localhost') !== -1)
-				return;
+			if (__meteor_runtime_config__.ROOT_URL.indexOf('localhost') === -1) {
+				console.log("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
+				process.exit();
+			}
 		}
-
-		console.log("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
-		process.exit();
-		//-----------------------
 
 		//gather metadata and publish them
 		var packages = _.keys(Package);
@@ -156,6 +157,11 @@ if (Meteor.isServer) {
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});
+		},
+		'serverEval/removeWatch': function(id) {
+			ServerEval._watch.remove({
+				_id: id
+			});
 		}
 	});
 }
