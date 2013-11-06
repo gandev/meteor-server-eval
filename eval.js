@@ -50,9 +50,7 @@ if (Meteor.isServer) {
 		return ServerEval.results();
 	});
 
-	ServerEval._watch = new Meteor.Collection("server-eval-watch", {
-		connection: null // not persistent
-	});
+	ServerEval._watch = new Meteor.Collection("server-eval-watch"); //TODO really persistent?
 	Meteor.publish("server-eval-watch", function() {
 		return ServerEval.watch();
 	});
