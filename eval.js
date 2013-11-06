@@ -55,6 +55,17 @@ if (Meteor.isServer) {
 	});
 
 	Meteor.startup(function() {
+		//check for localhost to force dev development over production
+		if (__meteor_runtime_config__) {
+			if (__meteor_runtime_config__.ROOT_URL.indexOf('localhost') !== -1)
+				return;
+		}
+
+		console.log("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
+		process.exit();
+		//-----------------------
+
+		//gather metadata and publish them
 		var packages = _.keys(Package);
 		var supported_packages = _.filter(packages, function(pkg) {
 			return !!findEval(pkg);
@@ -128,6 +139,7 @@ if (Meteor.isServer) {
 
 			//console.time("insert new result time");
 			if (watch) {
+				//create new or update result for watched expression
 				if (ServerEval._watch.findOne({
 					expr: expr
 				})) {
