@@ -75,6 +75,15 @@ if (Meteor.isServer) {
 			packages: packages,
 			supported_packages: supported_packages
 		});
+
+		//refresh watches
+		var watches = ServerEval._watch.find().fetch();
+		_.each(watches, function(watch) {
+			Meteor.call('serverEval/eval', watch.expr, {
+				'package': watch.watch_scope,
+				watch: true
+			});
+		});
 	});
 
 	//checks if eval function in package scope available
