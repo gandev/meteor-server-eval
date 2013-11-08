@@ -148,14 +148,15 @@ if (Meteor.isServer) {
 			//console.time("insert new result time");
 			if (watch) {
 				result_obj.watch_scope = pkg;
+				result_obj.result = JSON.stringify(result_obj);
 				//create new or update result for watched expression
-				if (ServerEval._watch.findOne({
+				var existing_watch = ServerEval._watch.findOne({
 					expr: expr,
 					watch_scope: pkg
-				})) {
+				});
+				if (existing_watch) {
 					ServerEval._watch.update({
-						expr: expr,
-						watch_scope: pkg
+						_id: existing_watch
 					}, result_obj);
 				} else {
 					ServerEval._watch.insert(result_obj);
