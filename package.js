@@ -8,4 +8,5 @@ Package.on_use(function(api) {
   api.export('ServerEval');
 
   api.add_files('eval.js', ['client', 'server']);
+  api.add_files('result_format.js', 'server');
 });
