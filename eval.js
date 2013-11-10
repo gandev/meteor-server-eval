@@ -102,7 +102,6 @@ if (Meteor.isServer) {
 
 			options = options || {};
 			var pkg = options.package;
-			var watch = options.watch;
 
 			var eval_time = Date.now();
 			var scope = "server-eval";
@@ -128,7 +127,7 @@ if (Meteor.isServer) {
 			var eval_exec_time = Date.now();
 			try {
 				//run eval in package scope / fallback to eval in current scope
-				result = _eval(expr);
+				result = _eval(options.autocomplete ? '_.keys(' + expr + ')' : expr);
 			} catch (e) {
 				//error in eval
 				result = e;
@@ -145,8 +144,20 @@ if (Meteor.isServer) {
 				result: prettyResult(result)
 			};
 
+			//match keys to autocomplete search
+			if (options.autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
+				var completions = [];
+				_.each(result_obj.result, function(value) {
+					if (!options.search || value.match(new RegExp("^" + options.search, "i"))) {
+						completions.push(value);
+					}
+				});
+				result_obj.result = completions;
+				result_obj.autocomplete = true;
+			}
+
 			//console.time("insert new result time");
-			if (watch) {
+			if (options.watch) {
 				result_obj.watch_scope = pkg;
 				result_obj.result = JSON.stringify(result_obj);
 				//create new or update result for watched expression
