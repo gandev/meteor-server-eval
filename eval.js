@@ -50,7 +50,7 @@ if (Meteor.isServer) {
 		return ServerEval.results();
 	});
 
-	ServerEval._watch = new Meteor.Collection("server-eval-watch"); //TODO really persistent?
+	ServerEval._watch = new Meteor.Collection("server-eval-watch");
 	Meteor.publish("server-eval-watch", function() {
 		return ServerEval.watch();
 	});
@@ -107,7 +107,7 @@ if (Meteor.isServer) {
 			var scope = "server-eval";
 			var result;
 			var _eval = function(expr) {
-				//TODO investigate, without wrapping function other scope e.g. Npm undefined
+				//without wrapping function other scope e.g. Npm undefined
 				return eval(expr);
 			};
 

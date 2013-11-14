@@ -58,7 +58,7 @@ prettyResult = function(result) {
 
 			_cached = cached(value);
 			if (_cached) {
-				//remove futures!? TODO consider
+				//remove futures, just because this info is pointless
 				if (key !== "future") {
 					// Circular reference found
 					dst_obj[key] = {
