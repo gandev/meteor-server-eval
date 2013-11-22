@@ -25,14 +25,14 @@ ServerEval = {
 };
 
 if (Meteor.isClient) {
-	ServerEval._results = new Meteor.Collection("server-eval-results");
-	Meteor.subscribe("server-eval-results");
-
 	ServerEval._metadata = new Meteor.Collection("server-eval-metadata");
 	Meteor.subscribe("server-eval-metadata");
 
 	ServerEval._watch = new Meteor.Collection("server-eval-watch");
 	Meteor.subscribe("server-eval-watch");
+
+	ServerEval._results = new Meteor.Collection("server-eval-results");
+	Meteor.subscribe("server-eval-results");
 }
 
 if (Meteor.isServer) {
@@ -43,16 +43,16 @@ if (Meteor.isServer) {
 		return ServerEval.metadata();
 	});
 
+	ServerEval._watch = new Meteor.Collection("server-eval-watch");
+	Meteor.publish("server-eval-watch", function() {
+		return ServerEval.watch();
+	});
+
 	ServerEval._results = new Meteor.Collection("server-eval-results", {
 		connection: null // not persistent
 	});
 	Meteor.publish("server-eval-results", function() {
 		return ServerEval.results();
-	});
-
-	ServerEval._watch = new Meteor.Collection("server-eval-watch");
-	Meteor.publish("server-eval-watch", function() {
-		return ServerEval.watch();
 	});
 
 	//checks if eval function in package scope available
