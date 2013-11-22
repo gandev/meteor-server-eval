@@ -55,12 +55,21 @@ if (Meteor.isServer) {
 		return ServerEval.watch();
 	});
 
+	//checks if eval function in package scope available
+	var findEval = function(package) {
+		if (Package[package]) {
+			var supported_package = _.find(_.values(Package[package]), function(exprt) {
+				return !!exprt.__serverEval;
+			});
+			return supported_package && supported_package.__serverEval;
+		}
+	};
+
 	Meteor.startup(function() {
 		//check for localhost to force dev development over production
 		if (__meteor_runtime_config__) {
 			if (__meteor_runtime_config__.ROOT_URL.indexOf('localhost') === -1) {
-				console.log("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
-				process.exit();
+				Log.error("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
 			}
 		}
 
@@ -85,16 +94,6 @@ if (Meteor.isServer) {
 			});
 		});
 	});
-
-	//checks if eval function in package scope available
-	var findEval = function(package) {
-		if (Package[package]) {
-			var supported_package = _.find(_.values(Package[package]), function(exprt) {
-				return !!exprt.__serverEval;
-			});
-			return supported_package && supported_package.__serverEval;
-		}
-	};
 
 	Meteor.methods({
 		'serverEval/eval': function(expr, options) {
@@ -154,6 +153,9 @@ if (Meteor.isServer) {
 				});
 				result_obj.result = completions;
 				result_obj.autocomplete = true;
+			} else if (options.autocomplete) {
+				result_obj.result.stack = null;
+				result_obj.result.err = "autocomplete failed, no object";
 			}
 
 			//console.time("insert new result time");

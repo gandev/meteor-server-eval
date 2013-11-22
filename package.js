@@ -3,7 +3,7 @@ Package.describe({
 });
 
 Package.on_use(function(api) {
-  api.use(['underscore', 'standard-app-packages'], ['client', 'server']);
+  api.use(['standard-app-packages'], ['client', 'server']);
 
   api.export('ServerEval');
 

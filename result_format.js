@@ -21,7 +21,6 @@ prettyResult = function(result) {
 		});
 	};
 
-	//TODO investigate a more reliable solution
 	var getConstructorName = function(obj) {
 		var name = obj.constructor && obj.constructor.name;
 		return name !== "Object" && name || "";
@@ -83,8 +82,6 @@ prettyResult = function(result) {
 					//evaluating ServerEval (e.g. with Meteor, Package, ServerEval, ...)
 					//ends up adding all results multiple times to the result and again
 					//so it's important to toss them away
-					//TODO maybe toss all internals away like metadata but i wan't to remove as little as possible
-					//TODO also consider someone evaluating these things without context... maybe dont allow in Console!?
 					dst_obj[key] = {
 						____TYPE____: '[Internal]'
 					};
