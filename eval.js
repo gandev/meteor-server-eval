@@ -148,7 +148,7 @@ if (Meteor.isServer) {
 			if (options.autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
 				var completions = [];
 				_.each(result_obj.result, function(value) {
-					if (!options.search || value.match(new RegExp("^" + options.search, "i"))) {
+					if (!options.search || value.match(new RegExp("^" + options.search))) {
 						completions.push(value);
 					}
 				});
