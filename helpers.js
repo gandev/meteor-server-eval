@@ -9,7 +9,7 @@ var walk = function(dir) {
 
   var addToResult = function(file, path) {
     if (path.length === 0) {
-      result[file] = file;
+      result[file] = 'file';
     }
 
     var obj = result;
@@ -17,16 +17,15 @@ var walk = function(dir) {
       var key = path[i];
       if (_.isEmpty(key)) continue;
 
-      if (!(key in obj)) {
+      if (!(key in obj) || _.isString(obj[key])) {
         obj[key] = {};
-      } else if (_.isString(obj[key])) {
-        var new_obj = {};
-        new_obj[obj[key]] = "file";
-        obj[key] = new_obj;
-      } else if (_.isObject(obj[key])) {
-        obj[key][file] = "file";
       }
+
       obj = obj[key];
+
+      if (path.length - 1 === i) {
+        obj[file] = 'file';
+      }
     }
   };
 
