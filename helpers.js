@@ -4,7 +4,7 @@ var path = Npm.require('path');
 var walk = function(dir) {
   var result = {};
   var files = glob.sync(dir, {
-    cwd: '/'
+    cwd: path.join(process.cwd(), '..', '..', '..', '..', '..')
   });
 
   var addToResult = function(file, path) {
