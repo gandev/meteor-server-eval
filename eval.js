@@ -59,7 +59,7 @@ if (Meteor.isServer) {
 	var findEval = function(package) {
 		if (Package[package]) {
 			var supported_package = _.find(_.values(Package[package]), function(exprt) {
-				return !!exprt.__serverEval;
+				return exprt && typeof exprt.__serverEval === 'function';
 			});
 			return supported_package && supported_package.__serverEval;
 		}
