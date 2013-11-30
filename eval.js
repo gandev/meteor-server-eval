@@ -1,5 +1,6 @@
 ServerEval = {
 	version: "0.4",
+	helpers: {},
 	results: function() {
 		return ServerEval._results.find({}, {
 			sort: {
@@ -19,8 +20,8 @@ ServerEval = {
 	eval: function(expr, options) {
 		Meteor.call('serverEval/eval', expr, options);
 	},
-	_helper: function(command, args) {
-		Meteor.apply('serverEval/_helper', command, args);
+	executeHelper: function(command, args) {
+		Meteor.apply('serverEval/executeHelper', command, args);
 	},
 	clear: function() {
 		Meteor.call('serverEval/clear');
@@ -85,7 +86,8 @@ if (Meteor.isServer) {
 		ServerEval._metadata.insert({
 			version: ServerEval.version,
 			packages: packages,
-			supported_packages: supported_packages
+			supported_packages: supported_packages,
+			helpers: _.keys(ServerEval.helpers)
 		});
 
 		//refresh watches
@@ -180,19 +182,20 @@ if (Meteor.isServer) {
 			}
 			//console.timeEnd("insert new result time");
 		},
-		'serverEval/_helper': function(command, args) {
+		'serverEval/executeHelper': function(command, args) {
+			if (!command || command.length < 2) return;
+
+			var helper = command.substr(1);
 			var eval_exec_time = Date.now();
 			var result;
 			try {
-				if (ServerEval && typeof ServerEval[command] === 'function') {
+				if (typeof ServerEval.helpers[helper] === 'function') {
 					//TODO support async
-					result = ServerEval[command].apply(null, args);
+					result = ServerEval.helpers[helper].apply(null, args);
 				} else {
 					result = {
-						____TYPE____: "Error",
-						result: {
-							err: command + " not supported!"
-						}
+						____TYPE____: "[Error]",
+						err: command + " not supported!"
 					};
 				}
 			} catch (e) {
@@ -204,7 +207,8 @@ if (Meteor.isServer) {
 			ServerEval._results.insert({
 				eval_time: Date.now(),
 				eval_exec_time: eval_exec_time,
-				command: command,
+				expr: command + ' ' + args.join(' '),
+				scope: helper,
 				internal: true,
 				result: prettyResult(result)
 			});

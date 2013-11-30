@@ -38,6 +38,6 @@ var walk = function(dir) {
   return result;
 };
 
-ServerEval.ls = function(path) {
+ServerEval.helpers.ls = function(path) {
   return walk(path);
 };
