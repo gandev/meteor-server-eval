@@ -143,6 +143,8 @@ if (Meteor.isServer) {
 				result: prettyResult(result)
 			};
 
+			_.extend(result_obj, options);
+
 			//match keys to autocomplete search
 			if (options.autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
 				var completions = [];
@@ -152,7 +154,6 @@ if (Meteor.isServer) {
 					}
 				});
 				result_obj.result = completions;
-				result_obj.autocomplete = true;
 			} else if (options.autocomplete) {
 				result_obj.result.stack = null;
 				result_obj.result.err = "autocomplete failed, no object";
