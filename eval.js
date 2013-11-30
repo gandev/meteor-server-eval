@@ -19,6 +19,9 @@ ServerEval = {
 	eval: function(expr, options) {
 		Meteor.call('serverEval/eval', expr, options);
 	},
+	_helper: function(command, args) {
+		Meteor.apply('serverEval/_helper', command, args);
+	},
 	clear: function() {
 		Meteor.call('serverEval/clear');
 	}
@@ -95,58 +98,62 @@ if (Meteor.isServer) {
 		});
 	});
 
+	var eval_expression = function(expr, pkg, autocomplete) {
+		var scope = "server-eval";
+		var result;
+		var _eval = function(expr) {
+			//without wrapping function other scope e.g. Npm undefined
+			return eval(expr);
+		};
+
+		//determine scope
+		if (Package[pkg]) {
+			var scoped_eval = findEval(pkg);
+			if (scoped_eval) {
+				_eval = scoped_eval; //use scoped eval
+				scope = pkg;
+			} else {
+				scope = "server-eval[" + pkg + " not supported]";
+			}
+		} else if (pkg) {
+			scope = "server-eval[no " + pkg + " package]";
+		}
+
+		var eval_exec_time = Date.now();
+		try {
+			//run eval in package scope / fallback to eval in current scope
+			result = _eval(autocomplete ? '_.keys(' + expr + ')' : expr);
+		} catch (e) {
+			//error in eval
+			result = e;
+		}
+		eval_exec_time = Date.now() - eval_exec_time;
+
+		//TODO get rid of some data automatically!?
+		//because of serious performance issue with really big results
+		return {
+			eval_time: Date.now(),
+			eval_exec_time: eval_exec_time,
+			expr: expr,
+			scope: scope,
+			result: prettyResult(result)
+		};
+	};
+
 	Meteor.methods({
 		'serverEval/eval': function(expr, options) {
 			if (!expr || expr.length === 0) return;
 
 			options = options || {};
 			var pkg = options.package;
+			var autocomplete = options.autocomplete;
 
-			var eval_time = Date.now();
-			var scope = "server-eval";
-			var result;
-			var _eval = function(expr) {
-				//without wrapping function other scope e.g. Npm undefined
-				return eval(expr);
-			};
-
-			//determine scope
-			if (Package[pkg]) {
-				var scoped_eval = findEval(pkg);
-				if (scoped_eval) {
-					_eval = scoped_eval; //use scoped eval
-					scope = pkg;
-				} else {
-					scope = "server-eval[" + pkg + " not supported]";
-				}
-			} else if (pkg) {
-				scope = "server-eval[no " + pkg + " package]";
-			}
-
-			var eval_exec_time = Date.now();
-			try {
-				//run eval in package scope / fallback to eval in current scope
-				result = _eval(options.autocomplete ? '_.keys(' + expr + ')' : expr);
-			} catch (e) {
-				//error in eval
-				result = e;
-			}
-			eval_exec_time = Date.now() - eval_exec_time;
-
-			//TODO get rid of some data automatically!?
-			//because of serious performance issue with really big results
-			var result_obj = {
-				eval_time: eval_time,
-				eval_exec_time: eval_exec_time,
-				expr: expr,
-				scope: scope,
-				result: prettyResult(result)
-			};
+			var result_obj = eval_expression(expr, pkg, autocomplete);
 
 			_.extend(result_obj, options);
 
 			//match keys to autocomplete search
-			if (options.autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
+			if (autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
 				var completions = [];
 				_.each(result_obj.result, function(value) {
 					if (!options.search || value.match(new RegExp("^" + options.search))) {
@@ -154,7 +161,7 @@ if (Meteor.isServer) {
 					}
 				});
 				result_obj.result = completions;
-			} else if (options.autocomplete) {
+			} else if (autocomplete) {
 				result_obj.result.stack = null;
 				result_obj.result.err = "autocomplete failed, no object";
 			}
@@ -172,6 +179,35 @@ if (Meteor.isServer) {
 				ServerEval._results.insert(result_obj);
 			}
 			//console.timeEnd("insert new result time");
+		},
+		'serverEval/_helper': function(command, args) {
+			var eval_exec_time = Date.now();
+			var result;
+			try {
+				if (ServerEval && typeof ServerEval[command] === 'function') {
+					//TODO support async
+					result = ServerEval[command].apply(null, args);
+				} else {
+					result = {
+						____TYPE____: "Error",
+						result: {
+							err: command + " not supported!"
+						}
+					};
+				}
+			} catch (e) {
+				//error in eval
+				result = e;
+			}
+			eval_exec_time = Date.now() - eval_exec_time;
+
+			ServerEval._results.insert({
+				eval_time: Date.now(),
+				eval_exec_time: eval_exec_time,
+				command: command,
+				internal: true,
+				result: prettyResult(result)
+			});
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});

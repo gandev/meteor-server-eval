@@ -39,10 +39,5 @@ var walk = function(dir) {
 };
 
 ServerEval.ls = function(path) {
-  var metadata = ServerEval._metadata.findOne();
-  ServerEval._metadata.update(metadata._id, {
-    '$set': {
-      ls: walk(path)
-    }
-  });
+  return walk(path);
 };
