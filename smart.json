@@ -1,8 +1,8 @@
 {
-	"name": "server-eval",
-	"description": "allow clients to run eval with an arbitrary expression on the server",
-	"homepage": "https://github.com/gandev-de/meteor-server-eval",
-	"author": "Andreas Gabriel",
-	"version": "0.4.0",
-	"git": "https://github.com/gandev-de/meteor-server-eval.git"
+  "name": "server-eval",
+  "description": "allow clients to run eval with an arbitrary expression on the server",
+  "homepage": "https://github.com/gandev-de/meteor-server-eval",
+  "author": "Andreas Gabriel",
+  "version": "0.4.1",
+  "git": "https://github.com/gandev-de/meteor-server-eval.git"
 }
