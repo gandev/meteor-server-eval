@@ -44,6 +44,7 @@ if (Meteor.isServer) {
 		connection: null // not persistent
 	});
 	Meteor.publish("server-eval-metadata", function() {
+		updateMetadata();
 		return ServerEval.metadata();
 	});
 
@@ -59,16 +60,6 @@ if (Meteor.isServer) {
 		return ServerEval.results();
 	});
 
-	//checks if eval function in package scope available
-	var findEval = function(package) {
-		if (Package[package]) {
-			var supported_package = _.find(_.values(Package[package]), function(exprt) {
-				return exprt && typeof exprt.__serverEval === 'function';
-			});
-			return supported_package && supported_package.__serverEval;
-		}
-	};
-
 	Meteor.startup(function() {
 		//check for localhost to force dev development over production
 		if (__meteor_runtime_config__) {
@@ -76,19 +67,6 @@ if (Meteor.isServer) {
 				Log.error("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
 			}
 		}
-
-		//gather metadata and publish them
-		var packages = _.keys(Package);
-		var supported_packages = _.filter(packages, function(pkg) {
-			return !!findEval(pkg);
-		});
-
-		ServerEval._metadata.insert({
-			version: ServerEval.version,
-			packages: packages,
-			supported_packages: supported_packages,
-			helpers: _.keys(ServerEval.helpers)
-		});
 
 		//refresh watches
 		var watches = ServerEval._watch.find().fetch();

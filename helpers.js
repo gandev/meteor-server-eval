@@ -1,6 +1,31 @@
 var glob = Npm.require('glob');
 var path = Npm.require('path');
 
+//checks if eval function in package scope available
+findEval = function(package) {
+  if (Package[package]) {
+    var supported_package = _.find(_.values(Package[package]), function(exprt) {
+      return exprt && typeof exprt.__serverEval === 'function';
+    });
+    return supported_package && supported_package.__serverEval;
+  }
+};
+
+updateMetadata = function() {
+  //gather metadata and publish them
+  var packages = _.keys(Package);
+  var supported_packages = _.filter(packages, function(pkg) {
+    return !!findEval(pkg);
+  });
+
+  ServerEval._metadata.insert({
+    version: ServerEval.version,
+    packages: packages,
+    supported_packages: supported_packages,
+    helpers: _.keys(ServerEval.helpers)
+  });
+};
+
 var walk = function(dir) {
   var result = {};
   var files = glob.sync(dir, {
@@ -38,6 +63,10 @@ var walk = function(dir) {
   return result;
 };
 
-ServerEval.helpers.ls = function(path) {
+ServerEval.helpers.listFiles = function(path) {
   return walk(path);
+};
+
+ServerEval.helpers.updateMetadata = function() {
+  updateMetadata();
 };
