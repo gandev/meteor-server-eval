@@ -166,10 +166,28 @@ if (Meteor.isServer) {
 			var helper = command.substr(1);
 			var eval_exec_time = Date.now();
 			var result;
+
+			var new_result = function(result) {
+				eval_exec_time = Date.now() - eval_exec_time;
+
+				ServerEval._results.insert({
+					eval_time: Date.now(),
+					eval_exec_time: eval_exec_time,
+					expr: command + ' ' + args.join(' '),
+					scope: helper,
+					internal: true,
+					result: prettyResult(result)
+				});
+			};
+
+			var new_args = [new_result].concat(args);
+
 			try {
 				if (typeof ServerEval.helpers[helper] === 'function') {
-					//TODO support async
-					result = ServerEval.helpers[helper].apply(null, args);
+					result = ServerEval.helpers[helper].apply(null, new_args);
+					if (!result) {
+						return; //async
+					}
 				} else {
 					result = {
 						____TYPE____: "[Error]",
@@ -180,16 +198,7 @@ if (Meteor.isServer) {
 				//error in eval
 				result = e;
 			}
-			eval_exec_time = Date.now() - eval_exec_time;
-
-			ServerEval._results.insert({
-				eval_time: Date.now(),
-				eval_exec_time: eval_exec_time,
-				expr: command + ' ' + args.join(' '),
-				scope: helper,
-				internal: true,
-				result: prettyResult(result)
-			});
+			new_result(result);
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});

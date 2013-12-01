@@ -18,6 +18,47 @@
           "version": "2.0.1"
         }
       }
+    },
+    "js-git": {
+      "version": "0.6.1",
+      "dependencies": {
+        "push-to-pull": {
+          "version": "0.1.0"
+        },
+        "varint": {
+          "version": "0.0.3"
+        },
+        "bops": {
+          "version": "0.1.1",
+          "dependencies": {
+            "base64-js": {
+              "version": "0.0.2"
+            },
+            "to-utf8": {
+              "version": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "git-node-platform": {
+      "version": "0.1.4",
+      "dependencies": {
+        "ssh2": {
+          "version": "0.2.14",
+          "dependencies": {
+            "streamsearch": {
+              "version": "0.1.2"
+            },
+            "asn1": {
+              "version": "0.1.11"
+            }
+          }
+        }
+      }
+    },
+    "git-fs-db": {
+      "version": "0.2.0"
     }
   }
 }

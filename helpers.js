@@ -1,6 +1,14 @@
 var glob = Npm.require('glob');
 var path = Npm.require('path');
 
+//js-git
+var platform = Npm.require('git-node-platform');
+var jsGit = Npm.require('js-git');
+var fsDb = Npm.require('git-fs-db')(platform);
+var fs = platform.fs;
+
+var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
+
 //checks if eval function in package scope available
 findEval = function(package) {
   if (Package[package]) {
@@ -26,10 +34,10 @@ updateMetadata = function() {
   });
 };
 
-var walk = function(dir) {
+var createFileTreeSync = function(dir) {
   var result = {};
   var files = glob.sync(dir, {
-    cwd: path.join(process.cwd(), '..', '..', '..', '..', '..')
+    cwd: project_path
   });
 
   var addToResult = function(file, path) {
@@ -63,10 +71,87 @@ var walk = function(dir) {
   return result;
 };
 
-ServerEval.helpers.listFiles = function(path) {
-  return walk(path);
+var creatGitTree = function(hash, callback) {
+  var git_tree = {};
+
+  // Create a filesystem backed bare repo
+  var repo = jsGit(fsDb(fs(project_path + '/.git')));
+  repo.logWalk(hash, function(err, log) {
+    if (err) throw err;
+    var shallow;
+
+    function onRead(err, commit) {
+      if (err) throw err;
+      if (!commit) return logEnd(shallow);
+      if (commit.last) shallow = true;
+      var commit_date = addCommit(commit);
+      repo.treeWalk(commit.tree, function(err, tree) {
+        if (err) throw err;
+
+        function onEntry(err, entry) {
+          if (err) throw err;
+
+          if (!entry) {
+            return log.read(onRead);
+          }
+          addEntry(entry, commit_date);
+          return tree.read(onEntry);
+        }
+
+        tree.read(onEntry);
+      });
+    }
+
+    return log.read(onRead);
+  });
+
+  function addCommit(commit) {
+    var author = commit.author.name;
+    var message = commit.message;
+    var date = commit.author.date.toString();
+
+    git_tree[date] = {
+      author: author,
+      message: message
+    };
+
+    return date;
+  }
+
+  function addEntry(entry, commit_date) {
+    var path = entry.path;
+    var hash = entry.hash;
+    var entry_obj = {
+      path: path,
+      hash: hash
+    };
+
+    if (git_tree[commit_date].entries) {
+      git_tree[commit_date].entries.push(entry_obj);
+    } else {
+      git_tree[commit_date].entries = [entry_obj];
+    }
+  }
+
+  function logEnd(shallow) {
+    var message = shallow ? "End of shallow record." : "Beginning of history";
+
+    if (typeof callback === 'function') {
+      callback.call(null, git_tree);
+    }
+  }
+};
+
+//helper definitions
+
+ServerEval.helpers.listFiles = function(callback, path) {
+  return createFileTreeSync(path);
 };
 
 ServerEval.helpers.updateMetadata = function() {
   updateMetadata();
+};
+
+ServerEval.helpers.gitLog = function(callback, hash) {
+  creatGitTree(hash || 'HEAD', callback);
 };
