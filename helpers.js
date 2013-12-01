@@ -35,17 +35,17 @@ updateMetadata = function() {
 };
 
 var createFileTreeSync = function(dir) {
-  var result = {};
+  var file_tree = {};
   var files = glob.sync(dir, {
     cwd: project_path
   });
 
   var addToResult = function(file, path) {
     if (path.length === 0) {
-      result[file] = 'file';
+      file_tree[file] = 'file';
     }
 
-    var obj = result;
+    var obj = file_tree;
     for (var i = 0; i < path.length; i++) {
       var key = path[i];
       if (_.isEmpty(key)) continue;
@@ -68,10 +68,10 @@ var createFileTreeSync = function(dir) {
 
     addToResult(file, file_path);
   }
-  return result;
+  return file_tree;
 };
 
-var creatGitTree = function(hash, callback) {
+var createGitTree = function(hash, callback) {
   var git_tree = {};
 
   // Create a filesystem backed bare repo
@@ -80,7 +80,7 @@ var creatGitTree = function(hash, callback) {
     if (err) throw err;
     var shallow;
 
-    function onRead(err, commit) {
+    var onRead = function(err, commit) {
       if (err) throw err;
       if (!commit) return logEnd(shallow);
       if (commit.last) shallow = true;
@@ -100,12 +100,12 @@ var creatGitTree = function(hash, callback) {
 
         tree.read(onEntry);
       });
-    }
+    };
 
     return log.read(onRead);
   });
 
-  function addCommit(commit) {
+  var addCommit = function(commit) {
     var author = commit.author.name;
     var message = commit.message;
     var date = commit.author.date.toString();
@@ -116,9 +116,9 @@ var creatGitTree = function(hash, callback) {
     };
 
     return date;
-  }
+  };
 
-  function addEntry(entry, commit_date) {
+  var addEntry = function(entry, commit_date) {
     var path = entry.path;
     var hash = entry.hash;
     var entry_obj = {
@@ -131,15 +131,15 @@ var creatGitTree = function(hash, callback) {
     } else {
       git_tree[commit_date].entries = [entry_obj];
     }
-  }
+  };
 
-  function logEnd(shallow) {
+  var logEnd = function(shallow) {
     var message = shallow ? "End of shallow record." : "Beginning of history";
 
     if (typeof callback === 'function') {
       callback.call(null, git_tree);
     }
-  }
+  };
 };
 
 //helper definitions
@@ -153,5 +153,5 @@ ServerEval.helpers.updateMetadata = function() {
 };
 
 ServerEval.helpers.gitLog = function(callback, hash) {
-  creatGitTree(hash || 'HEAD', callback);
+  createGitTree(hash || 'HEAD', callback);
 };
