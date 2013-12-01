@@ -2,7 +2,8 @@ Npm.depends({
   'glob': '3.2.7',
   'js-git': '0.6.1',
   'git-node-platform': '0.1.4',
-  'git-fs-db': '0.2.0'
+  'git-fs-db': '0.2.0',
+  'git-wrapper': '0.1.1'
 });
 
 Package.describe({

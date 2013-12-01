@@ -88,7 +88,7 @@ var createGitTree = function(hash, callback) {
       repo.treeWalk(commit.tree, function(err, tree) {
         if (err) throw err;
 
-        function onEntry(err, entry) {
+        var onEntry = function(err, entry) {
           if (err) throw err;
 
           if (!entry) {
@@ -96,7 +96,7 @@ var createGitTree = function(hash, callback) {
           }
           addEntry(entry, commit_date);
           return tree.read(onEntry);
-        }
+        };
 
         tree.read(onEntry);
       });
@@ -125,6 +125,7 @@ var createGitTree = function(hash, callback) {
       path: path,
       hash: hash
     };
+
 
     if (git_tree[commit_date].entries) {
       git_tree[commit_date].entries.push(entry_obj);

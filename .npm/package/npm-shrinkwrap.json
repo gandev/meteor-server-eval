@@ -59,6 +59,9 @@
     },
     "git-fs-db": {
       "version": "0.2.0"
+    },
+    "git-wrapper": {
+      "version": "0.1.1"
     }
   }
 }
