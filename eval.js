@@ -180,11 +180,9 @@ if (Meteor.isServer) {
 				});
 			};
 
-			var new_args = [new_result].concat(args);
-
 			try {
 				if (typeof ServerEval.helpers[helper] === 'function') {
-					result = ServerEval.helpers[helper].apply(null, new_args);
+					result = ServerEval.helpers[helper](new_result, args);
 					if (!result) {
 						return; //async
 					}

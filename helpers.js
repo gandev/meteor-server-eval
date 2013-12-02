@@ -37,18 +37,26 @@ ServerEval.helpers.updateMetadata = function() {
   updateMetadata();
 };
 
-var executeGit = function(command, callback) {
-  git.exec(command, function(err, msg) {
-    var result = {};
+var executeGit = function(command, callback, args) {
+  var options = {};
+  git.exec(command, options, args || [], function(err, msg) {
+    var result = {
+      output: msg
+    };
 
     if (err) {
-      callback.call(null, err);
+      result = err;
     }
 
-    callback.call(null, {
-      output: msg
-    });
+    callback(result);
   });
+};
+
+ServerEval.helpers.git = function(callback, args) {
+  args = args || [];
+  var command = args[0];
+
+  executeGit(command, callback, args.slice(1));
 };
 
 ServerEval.helpers.gitStatus = function(callback) {
