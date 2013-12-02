@@ -34,5 +34,11 @@ ServerEval.helpers.updateMetadata = function() {
 };
 
 ServerEval.helpers.gitStatus = function(callback, hash) {
+  var git = new Git({
+    'git-dir': project_path + '/.git'
+  });
 
+  git.exec('status', function(err, msg) {
+    callback.call(null, msg);
+  });
 };
