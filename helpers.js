@@ -2,6 +2,10 @@ var path = Npm.require('path');
 
 var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
+var git = new Git({
+  'exec-path': project_path
+});
+
 //checks if eval function in package scope available
 findEval = function(package) {
   if (Package[package]) {
@@ -33,12 +37,24 @@ ServerEval.helpers.updateMetadata = function() {
   updateMetadata();
 };
 
-ServerEval.helpers.gitStatus = function(callback, hash) {
-  var git = new Git({
-    'git-dir': project_path + '/.git'
-  });
+var executeGit = function(command, callback) {
+  git.exec(command, function(err, msg) {
+    var result = {};
 
-  git.exec('status', function(err, msg) {
-    callback.call(null, msg);
+    if (err) {
+      callback.call(null, err);
+    }
+
+    callback.call(null, {
+      output: msg
+    });
   });
+};
+
+ServerEval.helpers.gitStatus = function(callback) {
+  executeGit('status', callback);
+};
+
+ServerEval.helpers.gitDiff = function(callback) {
+  executeGit('diff', callback);
 };

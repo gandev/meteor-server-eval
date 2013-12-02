@@ -1,5 +1,6 @@
 var formatValue = function(value) {
 	if (_.isString(value)) {
+		//TODO escape <> ..
 		return value.replace(/\n/g, '<br>');
 	} else {
 		return value;
