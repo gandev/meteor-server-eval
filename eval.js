@@ -40,11 +40,9 @@ if (Meteor.isClient) {
 }
 
 if (Meteor.isServer) {
-	ServerEval._metadata = new Meteor.Collection("server-eval-metadata", {
-		connection: null // not persistent
-	});
+	ServerEval._metadata = new Meteor.Collection("server-eval-metadata");
 	Meteor.publish("server-eval-metadata", function() {
-		updateMetadata();
+		updateMetadata(true);
 		return ServerEval.metadata();
 	});
 
