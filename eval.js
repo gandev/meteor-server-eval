@@ -1,5 +1,6 @@
 ServerEval = {
 	version: "0.4",
+	helpers: {},
 	results: function() {
 		return ServerEval._results.find({}, {
 			sort: {
@@ -19,6 +20,9 @@ ServerEval = {
 	eval: function(expr, options) {
 		Meteor.call('serverEval/eval', expr, options);
 	},
+	executeHelper: function(command, args) {
+		Meteor.apply('serverEval/executeHelper', command, args);
+	},
 	clear: function() {
 		Meteor.call('serverEval/clear');
 	}
@@ -36,10 +40,9 @@ if (Meteor.isClient) {
 }
 
 if (Meteor.isServer) {
-	ServerEval._metadata = new Meteor.Collection("server-eval-metadata", {
-		connection: null // not persistent
-	});
+	ServerEval._metadata = new Meteor.Collection("server-eval-metadata");
 	Meteor.publish("server-eval-metadata", function() {
+		updateMetadata(true);
 		return ServerEval.metadata();
 	});
 
@@ -55,35 +58,15 @@ if (Meteor.isServer) {
 		return ServerEval.results();
 	});
 
-	//checks if eval function in package scope available
-	var findEval = function(package) {
-		if (Package[package]) {
-			var supported_package = _.find(_.values(Package[package]), function(exprt) {
-				return exprt && typeof exprt.__serverEval === 'function';
-			});
-			return supported_package && supported_package.__serverEval;
-		}
-	};
-
 	Meteor.startup(function() {
+		//term = new Package['hypernal'].Terminal(); //TODO
+
 		//check for localhost to force dev development over production
 		if (__meteor_runtime_config__) {
 			if (__meteor_runtime_config__.ROOT_URL.indexOf('localhost') === -1) {
 				Log.error("FATAL ERROR: METEOR-SERVER-EVAL MUST NOT RUN IN PRODUCTION");
 			}
 		}
-
-		//gather metadata and publish them
-		var packages = _.keys(Package);
-		var supported_packages = _.filter(packages, function(pkg) {
-			return !!findEval(pkg);
-		});
-
-		ServerEval._metadata.insert({
-			version: ServerEval.version,
-			packages: packages,
-			supported_packages: supported_packages
-		});
 
 		//refresh watches
 		var watches = ServerEval._watch.find().fetch();
@@ -95,56 +78,62 @@ if (Meteor.isServer) {
 		});
 	});
 
+	var eval_expression = function(expr, pkg, autocomplete) {
+		var scope = "server-eval";
+		var result;
+		var _eval = function(expr) {
+			//without wrapping function other scope e.g. Npm undefined
+			return eval(expr);
+		};
+
+		//determine scope
+		if (Package[pkg]) {
+			var scoped_eval = findEval(pkg);
+			if (scoped_eval) {
+				_eval = scoped_eval; //use scoped eval
+				scope = pkg;
+			} else {
+				scope = "server-eval[" + pkg + " not supported]";
+			}
+		} else if (pkg) {
+			scope = "server-eval[no " + pkg + " package]";
+		}
+
+		var eval_exec_time = Date.now();
+		try {
+			//run eval in package scope / fallback to eval in current scope
+			result = _eval(autocomplete ? '_.keys(' + expr + ')' : expr);
+		} catch (e) {
+			//error in eval
+			result = e;
+		}
+		eval_exec_time = Date.now() - eval_exec_time;
+
+		//TODO get rid of some data automatically!?
+		//because of serious performance issue with really big results
+		return {
+			eval_time: Date.now(),
+			eval_exec_time: eval_exec_time,
+			expr: expr,
+			scope: scope,
+			result: prettyResult(result)
+		};
+	};
+
 	Meteor.methods({
 		'serverEval/eval': function(expr, options) {
 			if (!expr || expr.length === 0) return;
 
 			options = options || {};
 			var pkg = options.package;
+			var autocomplete = options.autocomplete;
 
-			var eval_time = Date.now();
-			var scope = "server-eval";
-			var result;
-			var _eval = function(expr) {
-				//without wrapping function other scope e.g. Npm undefined
-				return eval(expr);
-			};
+			var result_obj = eval_expression(expr, pkg, autocomplete);
 
-			//determine scope
-			if (Package[pkg]) {
-				var scoped_eval = findEval(pkg);
-				if (scoped_eval) {
-					_eval = scoped_eval; //use scoped eval
-					scope = pkg;
-				} else {
-					scope = "server-eval[" + pkg + " not supported]";
-				}
-			} else if (pkg) {
-				scope = "server-eval[no " + pkg + " package]";
-			}
-
-			var eval_exec_time = Date.now();
-			try {
-				//run eval in package scope / fallback to eval in current scope
-				result = _eval(options.autocomplete ? '_.keys(' + expr + ')' : expr);
-			} catch (e) {
-				//error in eval
-				result = e;
-			}
-			eval_exec_time = Date.now() - eval_exec_time;
-
-			//TODO get rid of some data automatically!?
-			//because of serious performance issue with really big results
-			var result_obj = {
-				eval_time: eval_time,
-				eval_exec_time: eval_exec_time,
-				expr: expr,
-				scope: scope,
-				result: prettyResult(result)
-			};
+			_.extend(result_obj, options);
 
 			//match keys to autocomplete search
-			if (options.autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
+			if (autocomplete && result_obj.result.____TYPE____ !== '[Error]') {
 				var completions = [];
 				_.each(result_obj.result, function(value) {
 					if (!options.search || value.match(new RegExp("^" + options.search))) {
@@ -152,8 +141,7 @@ if (Meteor.isServer) {
 					}
 				});
 				result_obj.result = completions;
-				result_obj.autocomplete = true;
-			} else if (options.autocomplete) {
+			} else if (autocomplete) {
 				result_obj.result.stack = null;
 				result_obj.result.err = "autocomplete failed, no object";
 			}
@@ -171,6 +159,44 @@ if (Meteor.isServer) {
 				ServerEval._results.insert(result_obj);
 			}
 			//console.timeEnd("insert new result time");
+		},
+		'serverEval/executeHelper': function(command, args) {
+			if (!command || command.length < 2) return;
+
+			var helper = command.substr(1);
+			var eval_exec_time = Date.now();
+			var result;
+
+			var new_result = function(result) {
+				eval_exec_time = Date.now() - eval_exec_time;
+
+				ServerEval._results.insert({
+					eval_time: Date.now(),
+					eval_exec_time: eval_exec_time,
+					expr: command + ' ' + args.join(' '),
+					scope: helper,
+					internal: true,
+					result: prettyResult(result)
+				});
+			};
+
+			try {
+				if (typeof ServerEval.helpers[helper] === 'function') {
+					result = ServerEval.helpers[helper](new_result, args);
+					if (!result) {
+						return; //async
+					}
+				} else {
+					result = {
+						____TYPE____: "[Error]",
+						err: command + " not supported!"
+					};
+				}
+			} catch (e) {
+				//error in eval
+				result = e;
+			}
+			new_result(result);
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});

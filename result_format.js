@@ -1,7 +1,9 @@
 //create json from object, filters circular dependencies 
 //and adds custom ____TYPE____ property
 prettyResult = function(result) {
-	if (!_.isObject(result)) return result;
+	if (!_.isObject(result)) {
+		return result;
+	}
 
 	var cache = [];
 	var current_path = [];
