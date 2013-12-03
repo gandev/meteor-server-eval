@@ -1,17 +1,8 @@
-var formatValue = function(value) {
-	if (_.isString(value)) {
-		//TODO escape <> ..
-		return value.replace(/\n/g, '<br>');
-	} else {
-		return value;
-	}
-};
-
 //create json from object, filters circular dependencies 
 //and adds custom ____TYPE____ property
 prettyResult = function(result) {
 	if (!_.isObject(result)) {
-		return formatValue(result);
+		return result;
 	}
 
 	var cache = [];
@@ -101,7 +92,7 @@ prettyResult = function(result) {
 					dst_obj[key] = formatObject(value);
 					_cached.formatted_value = dst_obj[key];
 				} else {
-					dst_obj[key] = formatValue(value);
+					dst_obj[key] = value;
 				}
 			}
 

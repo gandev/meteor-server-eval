@@ -4,9 +4,8 @@ var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
 var isLoggingActive = false;
 
-var git = new Git({
-  'exec-path': project_path
-});
+var git = new Git();
+git.cwd = project_path;
 
 //checks if eval function in package scope available
 findEval = function(package) {
@@ -93,7 +92,7 @@ var executeGit = function(command, callback, args) {
   var options = {};
   git.exec(command, options, args || [], function(err, msg) {
     var result = {
-      output: msg
+      output: '\n' + msg
     };
 
     if (err) {
