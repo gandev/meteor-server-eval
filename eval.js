@@ -59,8 +59,6 @@ if (Meteor.isServer) {
 	});
 
 	Meteor.startup(function() {
-		//term = new Package['hypernal'].Terminal(); //TODO
-
 		//check for localhost to force dev development over production
 		if (__meteor_runtime_config__) {
 			if (__meteor_runtime_config__.ROOT_URL.indexOf('localhost') === -1) {

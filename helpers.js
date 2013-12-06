@@ -1,11 +1,7 @@
 var path = Npm.require('path');
 
-var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
-
-var isLoggingActive = false;
-
-var git = new Git();
-git.cwd = project_path;
+isLoggingActive = false;
+project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
 //checks if eval function in package scope available
 findEval = function(package) {
@@ -88,21 +84,11 @@ var createLogMessage = function(message, isError) {
   };
 })();
 
-var executeGit = function(command, callback, args) {
-  var options = {};
-  git.exec(command, options, args || [], function(err, msg) {
-    var result = {
-      output: '\n' + msg
-    };
-
-    if (err) {
-      result = err;
-    }
-    callback(result);
-  });
-};
-
 //helper definitions
+
+//git config --global color.ui true
+//--color=always
+//-c color.ui=always
 
 ServerEval.helpers.updateMetadata = function() {
   updateMetadata();
@@ -112,27 +98,4 @@ ServerEval.helpers.toggleLogging = function() {
   isLoggingActive = !isLoggingActive;
   updateMetadata();
   return isLoggingActive ? 'ON' : 'OFF';
-};
-
-ServerEval.helpers.git = function(callback, args) {
-  args = args || [];
-  var command = args[0];
-
-  executeGit(command, callback, args.slice(1));
-};
-
-ServerEval.helpers.gitStatus = function(callback) {
-  executeGit('status', callback);
-};
-
-ServerEval.helpers.gitDiff = function(callback) {
-  executeGit('diff', callback);
-};
-
-ServerEval.helpers.gitLog = function(callback) {
-  executeGit('log', callback);
-};
-
-ServerEval.helpers.gitReflog = function(callback) {
-  executeGit('reflog', callback);
 };
