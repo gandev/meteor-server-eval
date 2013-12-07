@@ -1,40 +1,41 @@
 var exec = Npm.require('child_process').exec;
 
 executeGit = function(args, callback) {
+  if (typeof callback !== 'function') {
+    Log.error("Result callback necessary!");
+    return;
+  }
+
   var cmd = 'git -c color.ui=always ' + args.join(' ');
 
   exec(cmd, {
     cwd: project_path
   }, function(err, stdout, stderr) {
-    var result;
+    var err_result;
     if (err) {
-      result = err;
+      err_result = err;
     } else if (stderr) {
-      result = {
+      //TODO test
+      err_result = {
         ____TYPE____: '[Error]',
         err: stderr
       };
-    } else {
-      result = {
-        output: stdout
-      };
-
-      if (isLoggingActive) {
-        console.log(stdout);
-        return;
-      }
     }
 
-    if (typeof callback === 'function') {
-      callback(result);
+    if (err_result) {
+      callback(err_result);
     } else {
-      Log.warning('No callback defined!');
+      callback({
+        message: stdout
+      }, {
+        log: true
+      });
     }
   });
 };
 
 ServerEval.helpers.git = function(callback, args) {
-  executeGit(args);
+  executeGit(args, callback);
 };
 
 ServerEval.helpers.gitStatus = function(callback) {

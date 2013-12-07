@@ -41,7 +41,7 @@ prettyResult = function(result) {
 			dst_obj = {
 				____TYPE____: '[Error]',
 				err: src_obj.toString(),
-				stack: stacktrace.slice(1)
+				stack: stacktrace.slice(1) //TODO error messages with multiple lines
 			};
 			return dst_obj;
 		}

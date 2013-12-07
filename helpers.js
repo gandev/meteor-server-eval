@@ -34,13 +34,14 @@ updateMetadata = function(initial) {
     packages: packages,
     supported_packages: supported_packages,
     helpers: _.keys(ServerEval.helpers),
-    logging: isLoggingActive
+    logging: isLoggingActive,
+    project_path: project_path
   });
 };
 
 updateMetadata(true);
 
-var createLogMessage = function(message, isError) {
+createLogMessage = function(message, isError) {
   var message_obj;
   try {
     message_obj = EJSON.parse(message);
@@ -50,14 +51,12 @@ var createLogMessage = function(message, isError) {
     };
   }
 
-  if (isLoggingActive) {
-    ServerEval._results.insert({
-      eval_time: Date.now(),
-      log: true,
-      err: isError,
-      result: prettyResult(message_obj)
-    });
-  }
+  ServerEval._results.insert({
+    eval_time: Date.now(),
+    log: true,
+    err: isError,
+    result: message_obj
+  });
 };
 
 (function redirectStderr() {
@@ -68,7 +67,10 @@ var createLogMessage = function(message, isError) {
     stderr_write.apply(stderr, arguments);
 
     var message = _.toArray(arguments)[0];
-    createLogMessage(message, true);
+
+    if (isLoggingActive) {
+      createLogMessage(message, true);
+    }
   };
 })();
 
@@ -80,7 +82,10 @@ var createLogMessage = function(message, isError) {
     stdout_write.apply(stdout, arguments);
 
     var message = _.toArray(arguments)[0];
-    createLogMessage(message);
+
+    if (isLoggingActive) {
+      createLogMessage(message);
+    }
   };
 })();
 

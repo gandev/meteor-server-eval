@@ -165,17 +165,22 @@ if (Meteor.isServer) {
 			var eval_exec_time = Date.now();
 			var result;
 
-			var new_result = function(result) {
+			var new_result = function(result, options) {
+				options = options || {};
 				eval_exec_time = Date.now() - eval_exec_time;
 
-				ServerEval._results.insert({
+				var result_obj = {
 					eval_time: Date.now(),
 					eval_exec_time: eval_exec_time,
 					expr: command + ' ' + args.join(' '),
 					scope: helper,
-					internal: true,
-					result: prettyResult(result)
-				});
+					result: prettyResult(result),
+					internal: true
+				};
+
+				_.extend(result_obj, options);
+
+				ServerEval._results.insert(result_obj);
 			};
 
 			try {
@@ -194,7 +199,9 @@ if (Meteor.isServer) {
 				//error in eval
 				result = e;
 			}
-			new_result(result);
+			new_result(result, {
+				internal: true
+			});
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});
