@@ -177,7 +177,7 @@ if (Meteor.isServer) {
 					expr: command + ' ' + args.join(' '),
 					scope: helper,
 					result: prettyResult(result),
-					internal: true
+					helper: true
 				};
 
 				_.extend(result_obj, options);
@@ -201,9 +201,7 @@ if (Meteor.isServer) {
 				//error in eval
 				result = e;
 			}
-			new_result(result, {
-				internal: true
-			});
+			new_result(result);
 		},
 		'serverEval/clear': function() {
 			ServerEval._results.remove({});
