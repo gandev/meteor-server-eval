@@ -1,6 +1,6 @@
 var path = Npm.require('path');
 
-isLoggingActive = false;
+isLoggingActive = true;
 project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
 //checks if eval function in package scope available

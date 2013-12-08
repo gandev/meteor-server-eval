@@ -1,5 +1,5 @@
 ServerEval = {
-	version: "0.4",
+	version: "0.5",
 	helpers: {},
 	results: function() {
 		return ServerEval._results.find({}, {
@@ -9,7 +9,9 @@ ServerEval = {
 		});
 	},
 	metadata: function() {
-		return ServerEval._metadata.find();
+		return ServerEval._metadata.find({
+			version: this.version
+		});
 	},
 	watch: function() {
 		return ServerEval._watch.find();

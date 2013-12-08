@@ -10,21 +10,23 @@ in fact it checks for a ROOT_URL set to something on localhost and logs an error
 ### API
 
 *    exports: "ServerEval" symbol which provides the following functions:
-     - .results() / returns a Meteor.Collection cursor with all evaluation results
-     - .metadata() / returns a Meteor.Collection cursor with various infos like a list with supported packages
-     - .watch() / returns a Meteor.Collection cursor with evaluation results identified by watches
-     - .eval(expression, options) / calls "eval" function with the given expression and options:
+     - __.results()__ returns a Meteor.Collection cursor with all evaluation results
+     - __.metadata()__ returns a Meteor.Collection cursor with various infos like a list with supported packages
+     - __.watch()__ returns a Meteor.Collection cursor with evaluation results identified by watches
+     - __.eval(expression, options)__ calls "eval" function with the given expression and options:
           *    package: "your-package to use as scope",
           *    watch: true to create or update a watch,
           *    autocomplete: true if eval for autocomplete, runs _.keys(expr),
           *    search: ... / eval with autocomplete true only return keys starting with this string
-     - .removeWatch(id) / remove watch by id
-     - .clear() / removes all evaluation results
+     - __.removeWatch(id)__ remove watch by id
+     - __.clear()__ removes all evaluation results
+     - __.executeHelper(command, args)__ execute helper (command) function with given arguments array  
 
 *    the .eval, .clear and .removeWatch functions are realized with it's corresponding Meteor.methods (same args):
-     - 'serverEval/eval'
-     - 'serverEval/removeWatch'
-     - 'serverEval/clear'
+     - __'serverEval/eval'__
+     - __'serverEval/removeWatch'__
+     - __'serverEval/clear'__
+     - __'serverEval/executeHelper'__
 
 ### Caveat
 
