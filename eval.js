@@ -78,6 +78,30 @@ if (Meteor.isServer) {
 		});
 	});
 
+	var estimatedObjectSize = function(object) {
+		var objectList = [];
+		var calculateSize = function(value) {
+			var bytes = 0;
+
+			if (typeof value === 'boolean') {
+				bytes = 4;
+			} else if (typeof value === 'string') {
+				bytes = value.length * 2;
+			} else if (typeof value === 'number') {
+				bytes = 8;
+			} else if (_.isObject(value) && objectList.indexOf(value) === -1) {
+				objectList[objectList.length] = value;
+				for (var i in value) {
+					bytes += i.length * 2;
+					bytes += 8; // assumed existence overhead
+					bytes += calculateSize(value[i]);
+				}
+			}
+			return bytes;
+		};
+		return calculateSize(object);
+	};
+
 	var eval_expression = function(expr, pkg, autocomplete) {
 		var scope = "server-eval";
 		var result;
@@ -116,7 +140,8 @@ if (Meteor.isServer) {
 			eval_exec_time: eval_exec_time,
 			expr: expr,
 			scope: scope,
-			result: prettyResult(result)
+			result: prettyResult(result),
+			size: estimatedObjectSize(result)
 		};
 	};
 
