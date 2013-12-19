@@ -23,8 +23,8 @@ updateMetadata = function(initial) {
   var old_metadata = ServerEval._metadata.findOne({
     version: ServerEval.version
   });
-  if (initial && old_metadata && old_metadata.logging) {
-    isLoggingActive = true;
+  if (initial && old_metadata) {
+    isLoggingActive = old_metadata.logging;
   }
 
   ServerEval._metadata.upsert({
