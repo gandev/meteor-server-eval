@@ -92,9 +92,8 @@ if (Meteor.isServer) {
 			} else if (_.isObject(value) && objectList.indexOf(value) === -1) {
 				objectList[objectList.length] = value;
 				for (var i in value) {
-					bytes += i.length * 2;
-					bytes += 8; // assumed existence overhead
-					bytes += calculateSize(value[i]);
+					bytes += i.length * 2; //key size
+					bytes += calculateSize(value[i]); //value size
 				}
 			}
 			return bytes;
