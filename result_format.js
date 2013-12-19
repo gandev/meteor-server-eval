@@ -37,11 +37,13 @@ prettyResult = function(result) {
 
 		//Errors - format stacktrace and create new error object
 		if (src_obj instanceof Error) {
+			var err_msg = src_obj.toString();
+			var err_msg_lines = err_msg.split("\n") || [err_msg];
 			var stacktrace = src_obj.stack && src_obj.stack.split("\n") || [];
 			dst_obj = {
 				____TYPE____: '[Error]',
-				err: src_obj.toString(),
-				stack: stacktrace.slice(1) //TODO error messages with multiple lines
+				err: err_msg,
+				stack: stacktrace.slice(err_msg_lines.length)
 			};
 			return dst_obj;
 		}
