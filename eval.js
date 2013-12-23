@@ -212,14 +212,17 @@ if (Meteor.isServer) {
 			try {
 				if (typeof ServerEval.helpers[helper] === 'function') {
 					result = ServerEval.helpers[helper](new_result, args);
-					if (!result) {
-						return; //async
-					}
 				} else {
-					result = {
-						____TYPE____: "[Error]",
-						err: command + " not supported!"
-					};
+					// result = {
+					// 	____TYPE____: "[Error]",
+					// 	err: command + " not supported!"
+					// };
+
+					//TODO really good idea?
+					result = executeCommand(helper, args, new_result);
+				}
+				if (!result) {
+					return; //async
 				}
 			} catch (e) {
 				//error in eval

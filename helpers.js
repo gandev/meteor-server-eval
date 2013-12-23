@@ -1,7 +1,42 @@
 var path = Npm.require('path');
+var exec = Npm.require('child_process').exec;
 
-isLoggingActive = true;
-project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
+var isLoggingActive = true;
+var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
+
+executeCommand = function(cmd, args, callback) {
+  if (typeof callback !== 'function') {
+    Log.error("Result callback necessary!");
+    return;
+  }
+
+  arg = args || [];
+  cmd = cmd + ' ' + args.join(' ');
+
+  exec(cmd, {
+    cwd: project_path
+  }, function(err, stdout, stderr) {
+    var err_result;
+    if (err) {
+      err_result = err;
+    } else if (stderr) {
+      err_result = {
+        ____TYPE____: '[Error]',
+        err: stderr
+      };
+    }
+
+    if (err_result) {
+      callback(err_result);
+    } else {
+      callback({
+        message: stdout
+      }, {
+        log: true
+      });
+    }
+  });
+};
 
 //checks if eval function in package scope available
 findEval = function(package) {
@@ -63,10 +98,8 @@ createLogMessage = function(message, isError) {
   var stderr = process.stderr;
   var stderr_write = stderr.write;
 
-  stderr.write = function() {
+  stderr.write = function(message) {
     stderr_write.apply(stderr, arguments);
-
-    var message = _.toArray(arguments)[0];
 
     if (isLoggingActive) {
       createLogMessage(message, true);
@@ -78,10 +111,8 @@ createLogMessage = function(message, isError) {
   var stdout = process.stdout;
   var stdout_write = stdout.write;
 
-  stdout.write = function() {
+  stdout.write = function(message) {
     stdout_write.apply(stdout, arguments);
-
-    var message = _.toArray(arguments)[0];
 
     if (isLoggingActive) {
       createLogMessage(message);
@@ -91,9 +122,9 @@ createLogMessage = function(message, isError) {
 
 //helper definitions
 
-//git config --global color.ui true
-//--color=always
-//-c color.ui=always
+ServerEval.helpers.abee = function(callback, args) {
+  executeCommand('abee', args, callback);
+};
 
 ServerEval.helpers.updateMetadata = function() {
   updateMetadata();
