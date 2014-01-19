@@ -20,7 +20,7 @@ in fact it checks for a ROOT_URL set to something on localhost and logs an error
           *    search: ... / eval with autocomplete true only return keys starting with this string
      - __.removeWatch(id)__ remove watch by id
      - __.clear()__ removes all evaluation results
-     - __.execute(command, args)__ execute helper (command) function with given arguments array or executes command with node child_process.exec
+     - __.execute(command, scope, args)__ execute helper (command) function with given arguments array or executes command with node child_process.exec (scope is used to execute in package folder)
 
 *    the .eval, .clear and .removeWatch functions are realized with it's corresponding Meteor.methods (same args):
      - __'serverEval/eval'__
