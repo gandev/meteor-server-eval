@@ -1,10 +1,11 @@
+var fs = Npm.require('fs');
 var path = Npm.require('path');
 var exec = Npm.require('child_process').exec;
 
 var isLoggingActive = true;
 var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
-executeCommand = function(cmd, args, callback) {
+executeCommand = function(cmd, scope, args, callback) {
   if (typeof callback !== 'function') {
     Log.error("Result callback necessary!");
     return;
@@ -13,8 +14,12 @@ executeCommand = function(cmd, args, callback) {
   arg = args || [];
   cmd = cmd + ' ' + args.join(' ');
 
+  var full_path = scope ? path.join(project_path, 'packages', scope) : project_path;
+
+  console.log(scope, full_path);
+
   exec(cmd, {
-    cwd: project_path
+    cwd: fs.existsSync(full_path) ? full_path : project_path
   }, function(err, stdout, stderr) {
     var err_result;
     if (err) {
@@ -122,8 +127,8 @@ createLogMessage = function(message, isError) {
 
 //helper definitions
 
-ServerEval.helpers.abee = function(callback, args) {
-  executeCommand('abee', args, callback);
+ServerEval.helpers.abee = function(scope, args, callback) {
+  executeCommand('abee', scope, args, callback);
 };
 
 ServerEval.helpers.updateMetadata = function() {

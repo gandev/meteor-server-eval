@@ -1,29 +1,29 @@
-executeGit = function(args, callback) {
-  var cmd = 'git -c color.ui=always';
+executeGit = function(scope, args, callback) {
+	var cmd = 'git -c color.ui=always';
 
-  executeCommand(cmd, args, callback);
+	executeCommand(cmd, scope, args, callback);
 };
 
-ServerEval.helpers.git = function(callback, args) {
-  executeGit(args, callback);
+ServerEval.helpers.git = function(scope, args, callback) {
+	executeGit(scope, args, callback);
 };
 
-ServerEval.helpers.gitStatus = function(callback) {
-  executeGit(['status'], callback);
+ServerEval.helpers.gitStatus = function(scope, args, callback) {
+	executeGit(scope, ['status'], callback);
 };
 
-ServerEval.helpers.gitDiff = function(callback) {
-  executeGit(['diff'], callback);
+ServerEval.helpers.gitDiff = function(scope, args, callback) {
+	executeGit(scope, ['diff'], callback);
 };
 
-ServerEval.helpers.gitLog = function(callback) {
-  executeGit(['log'], callback);
+ServerEval.helpers.gitLog = function(scope, args, callback) {
+	executeGit(scope, ['log'], callback);
 };
 
-ServerEval.helpers.gitReflog = function(callback) {
-  executeGit(['reflog'], callback);
+ServerEval.helpers.gitReflog = function(scope, args, callback) {
+	executeGit(scope, ['reflog'], callback);
 };
 
-ServerEval.helpers.gitBranch = function(callback) {
-  executeGit(['branch'], callback);
+ServerEval.helpers.gitBranch = function(scope, args, callback) {
+	executeGit(scope, ['branch'], callback);
 };

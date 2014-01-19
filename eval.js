@@ -22,8 +22,8 @@ ServerEval = {
 	eval: function(expr, options) {
 		Meteor.call('serverEval/eval', expr, options);
 	},
-	executeHelper: function(command, args) {
-		Meteor.apply('serverEval/executeHelper', command, args);
+	execute: function(command, args) {
+		Meteor.apply('serverEval/execute', command, args);
 	},
 	clear: function() {
 		Meteor.call('serverEval/clear');
@@ -184,8 +184,10 @@ if (Meteor.isServer) {
 			}
 			//console.timeEnd("insert new result time");
 		},
-		'serverEval/executeHelper': function(command, args) {
+		'serverEval/execute': function(command, scope, args) {
 			if (!command || command.length < 2) return;
+
+			args = args || [];
 
 			var helper = command.substr(1);
 			var eval_exec_time = Date.now();
@@ -199,7 +201,7 @@ if (Meteor.isServer) {
 					eval_time: Date.now(),
 					eval_exec_time: eval_exec_time,
 					expr: command + ' ' + args.join(' '),
-					scope: helper,
+					scope: helper + '@' + scope,
 					result: prettyResult(result),
 					helper: true
 				};
@@ -211,15 +213,9 @@ if (Meteor.isServer) {
 
 			try {
 				if (typeof ServerEval.helpers[helper] === 'function') {
-					result = ServerEval.helpers[helper](new_result, args);
+					result = ServerEval.helpers[helper](scope, args, new_result);
 				} else {
-					// result = {
-					// 	____TYPE____: "[Error]",
-					// 	err: command + " not supported!"
-					// };
-
-					//TODO really good idea?
-					result = executeCommand(helper, args, new_result);
+					result = executeCommand(helper, scope, args, new_result);
 				}
 				if (!result) {
 					return; //async
