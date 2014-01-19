@@ -16,8 +16,6 @@ executeCommand = function(cmd, scope, args, callback) {
 
   var full_path = scope ? path.join(project_path, 'packages', scope) : project_path;
 
-  console.log(scope, full_path);
-
   exec(cmd, {
     cwd: fs.existsSync(full_path) ? full_path : project_path
   }, function(err, stdout, stderr) {
