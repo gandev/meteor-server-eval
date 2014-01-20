@@ -54,6 +54,10 @@ findEval = function(package) {
 updateMetadata = function(initial) {
   //gather metadata and publish them
   var packages = _.keys(Package);
+  packages = _.filter(packages, function(pkg) {
+    return fs.existsSync(path.join(project_path, 'packages', pkg));
+  });
+
   var supported_packages = _.filter(packages, function(pkg) {
     return !!findEval(pkg);
   });
