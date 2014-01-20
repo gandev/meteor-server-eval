@@ -201,7 +201,7 @@ if (Meteor.isServer) {
 					eval_time: Date.now(),
 					eval_exec_time: eval_exec_time,
 					expr: command + ' ' + args.join(' '),
-					scope: helper + '@' + scope,
+					scope: helper + '@' + (scope || appName()),
 					result: prettyResult(result),
 					helper: true
 				};

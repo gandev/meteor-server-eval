@@ -5,6 +5,10 @@ var exec = Npm.require('child_process').exec;
 var isLoggingActive = true;
 var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
+appName = function() {
+  return path.basename(project_path);
+};
+
 executeCommand = function(cmd, scope, args, callback) {
   if (typeof callback !== 'function') {
     Log.error("Result callback necessary!");
@@ -73,6 +77,7 @@ updateMetadata = function(initial) {
     version: ServerEval.version
   }, {
     version: ServerEval.version,
+    appName: appName(),
     packages: packages,
     supported_packages: supported_packages,
     helpers: _.keys(ServerEval.helpers),
