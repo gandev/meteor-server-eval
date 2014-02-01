@@ -101,7 +101,10 @@ if (Meteor.isServer) {
 		return calculateSize(object);
 	};
 
-	var eval_expression = function(expr, pkg, autocomplete) {
+	var eval_expression = function(expr, options) {
+		options = options || {};
+		var pkg = options.package;
+
 		var scope = "server-eval";
 		var result;
 		var _eval = function(expr) {
@@ -125,23 +128,32 @@ if (Meteor.isServer) {
 		var eval_exec_time = Date.now();
 		try {
 			//run eval in package scope / fallback to eval in current scope
-			result = _eval(autocomplete ? '_.keys(' + expr + ')' : expr);
+			result = _eval(options.autocomplete ? '_.keys(' + expr + ')' : expr);
 		} catch (e) {
 			//error in eval
 			result = e;
 		}
 		eval_exec_time = Date.now() - eval_exec_time;
 
-		//TODO get rid of some data automatically!?
-		//because of serious performance issue with really big results
-		return {
+		var est_size = estimatedObjectSize(result);
+
+		var result_obj = {
 			eval_time: Date.now(),
 			eval_exec_time: eval_exec_time,
 			expr: expr,
 			scope: scope,
-			result: prettyResult(result),
-			size: estimatedObjectSize(result)
-		};
+			size: est_size
+		}; //at the moment 5MB result limit to prevent long freezes
+		if (!options.ignore_size && est_size > 5 * 1024 * 1024) {
+			result_obj.result = {
+				____TYPE____: '[Error]',
+				err: 'Object size too high, IGNORE if you really want to.. but expect freezes ;-)',
+				size_error: true
+			};
+		} else {
+			result_obj.result = prettyResult(result);
+		}
+		return result_obj;
 	};
 
 	Meteor.methods({
@@ -152,7 +164,7 @@ if (Meteor.isServer) {
 			var pkg = options.package;
 			var autocomplete = options.autocomplete;
 
-			var result_obj = eval_expression(expr, pkg, autocomplete);
+			var result_obj = eval_expression(expr, options);
 
 			_.extend(result_obj, options);
 
