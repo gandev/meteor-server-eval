@@ -10,7 +10,7 @@ appName = function() {
   return path.basename(project_path);
 };
 
-executionPath = function(scope) {
+var executionPath = function(scope) {
   var full_path = scope ? path.join(project_path, 'packages', scope) : project_path;
   return fs.existsSync(full_path) ? full_path : project_path;
 };
@@ -59,12 +59,15 @@ findEval = function(package) {
   }
 };
 
-var addCancelTestsHelper = function(helper_name, pid) {
+var addCancelTestsHelper = function(helper_name, pid, detached) {
   ServerEval.helpers[helper_name] = function() {
     try {
       process.kill(pid);
+      if (detached) {
+        console.log('test runner closed');
+      }
     } catch (e) {
-      //already closed
+      console.log('test runner already closed or access denied');
     }
     delete ServerEval.helpers[helper_name];
     updateMetadata();
@@ -91,7 +94,7 @@ updateMetadata = function(initial) {
     _.each(old_metadata.helpers, function(helper) {
       var helper_match = helper.match(/^cancel-tests.*-(\d*)/) || [];
       if (helper_match.length === 2) {
-        addCancelTestsHelper(helper, parseInt(helper_match[1], 10));
+        addCancelTestsHelper(helper, parseInt(helper_match[1], 10), true);
       }
     });
   }
@@ -132,7 +135,6 @@ createLogMessage = function(message, isError) {
 (function redirectStderr() {
   var stderr = process.stderr;
   var stderr_write = stderr.write;
-
   stderr.write = function(message) {
     stderr_write.apply(stderr, arguments);
 
@@ -145,7 +147,6 @@ createLogMessage = function(message, isError) {
 (function redirectStdout() {
   var stdout = process.stdout;
   var stdout_write = stdout.write;
-
   stdout.write = function(message) {
     stdout_write.apply(stdout, arguments);
 
@@ -158,15 +159,33 @@ createLogMessage = function(message, isError) {
 //helper definitions
 
 ServerEval.helpers['test-packages'] = function(scope, args, callback) {
-  var port = '5000';
-  _.each(args || [], function(arg) {
+  var port = '--port=5000';
+  var nextIsPort = false;
+  _.each(args || [], function(arg, idx) {
+    var isPortCommand = !! arg.match(/^--port/);
+    if (!isPortCommand && idx === 0 && arg.length > 0) {
+      if (arg === '.') {
+        scope = null; //used to start in whole app, even in package scope
+      } else {
+        scope = arg;
+      }
+      return;
+    }
+
     var arg_match = arg.match(/^--port=(\d*)/);
     if (arg_match && arg_match.length === 2) {
-      port = arg_match[1];
+      port = arg;
+    } else if (nextIsPort) {
+      if (!isNaN(parseInt(arg, 10))) {
+        port = '--port=' + arg;
+      }
+      nextIsPort = false;
+    } else {
+      nextIsPort = isPortCommand;
     }
   });
 
-  var test_runner = child_process.spawn('meteor', ['test-packages', scope, '--port=' + port], {
+  var test_runner = child_process.spawn('meteor', ['test-packages', scope, port], {
     cwd: project_path,
     detached: true
   });
@@ -179,12 +198,18 @@ ServerEval.helpers['test-packages'] = function(scope, args, callback) {
     console.log(data.toString());
   });
 
-  test_runner.on('close', function(code) {
-    console.log('test runner closed');
-  });
-
   var close_helper = 'cancel-tests' + (scope ? '-' + scope : '');
   close_helper = close_helper + '-' + test_runner.pid;
+
+  var handleTestRunnerClose = Meteor.bindEnvironment(function(code) {
+    console.log('test runner closed');
+    delete ServerEval.helpers[close_helper];
+    updateMetadata();
+  }, function(err) {
+    console.log(err);
+  });
+
+  test_runner.on('close', handleTestRunnerClose);
 
   addCancelTestsHelper(close_helper, test_runner.pid);
 
@@ -193,7 +218,7 @@ ServerEval.helpers['test-packages'] = function(scope, args, callback) {
   return {
     ____TYPE____: '[Tinytest]',
     pid: test_runner.pid,
-    port: port
+    port: parseInt(port.substr(7), 10)
   };
 };
 
