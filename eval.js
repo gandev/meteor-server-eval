@@ -101,7 +101,7 @@ if (Meteor.isServer) {
 		return calculateSize(object);
 	};
 
-	var eval_expression = function(expr, options) {
+	var evalExpression = function(expr, options) {
 		options = options || {};
 		var pkg = options.package;
 
@@ -164,7 +164,7 @@ if (Meteor.isServer) {
 			var pkg = options.package;
 			var autocomplete = options.autocomplete;
 
-			var result_obj = eval_expression(expr, options);
+			var result_obj = evalExpression(expr, options);
 
 			_.extend(result_obj, options);
 

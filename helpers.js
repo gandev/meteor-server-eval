@@ -1,12 +1,18 @@
 var fs = Npm.require('fs');
 var path = Npm.require('path');
-var exec = Npm.require('child_process').exec;
+var child_process = Npm.require('child_process');
+var exec = child_process.exec;
 
 var isLoggingActive = true;
 var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
 
 appName = function() {
   return path.basename(project_path);
+};
+
+executionPath = function(scope) {
+  var full_path = scope ? path.join(project_path, 'packages', scope) : project_path;
+  return fs.existsSync(full_path) ? full_path : project_path;
 };
 
 executeCommand = function(cmd, scope, args, callback) {
@@ -18,10 +24,8 @@ executeCommand = function(cmd, scope, args, callback) {
   arg = args || [];
   cmd = cmd + ' ' + args.join(' ');
 
-  var full_path = scope ? path.join(project_path, 'packages', scope) : project_path;
-
   exec(cmd, {
-    cwd: fs.existsSync(full_path) ? full_path : project_path
+    cwd: executionPath(scope)
   }, function(err, stdout, stderr) {
     var err_result;
     if (err) {
@@ -55,6 +59,18 @@ findEval = function(package) {
   }
 };
 
+var addCancelTestsHelper = function(helper_name, pid) {
+  ServerEval.helpers[helper_name] = function() {
+    try {
+      process.kill(pid);
+    } catch (e) {
+      //already closed
+    }
+    delete ServerEval.helpers[helper_name];
+    updateMetadata();
+  };
+};
+
 updateMetadata = function(initial) {
   //gather metadata and publish them
   var packages = _.keys(Package);
@@ -71,6 +87,13 @@ updateMetadata = function(initial) {
   });
   if (initial && old_metadata) {
     isLoggingActive = old_metadata.logging;
+
+    _.each(old_metadata.helpers, function(helper) {
+      var helper_match = helper.match(/^cancel-tests.*-(\d*)/) || [];
+      if (helper_match.length === 2) {
+        addCancelTestsHelper(helper, parseInt(helper_match[1], 10));
+      }
+    });
   }
 
   ServerEval._metadata.upsert({
@@ -134,8 +157,44 @@ createLogMessage = function(message, isError) {
 
 //helper definitions
 
-ServerEval.helpers.abee = function(scope, args, callback) {
-  executeCommand('abee', scope, args, callback);
+ServerEval.helpers['test-packages'] = function(scope, args, callback) {
+  var port = '5000';
+  _.each(args || [], function(arg) {
+    var arg_match = arg.match(/^--port=(\d*)/);
+    if (arg_match && arg_match.length === 2) {
+      port = arg_match[1];
+    }
+  });
+
+  var test_runner = child_process.spawn('meteor', ['test-packages', scope, '--port=' + port], {
+    cwd: project_path,
+    detached: true
+  });
+
+  test_runner.stdout.on('data', function(data) {
+    console.log(data.toString());
+  });
+
+  test_runner.stderr.on('data', function(data) {
+    console.log(data.toString());
+  });
+
+  test_runner.on('close', function(code) {
+    console.log('test runner closed');
+  });
+
+  var close_helper = 'cancel-tests' + (scope ? '-' + scope : '');
+  close_helper = close_helper + '-' + test_runner.pid;
+
+  addCancelTestsHelper(close_helper, test_runner.pid);
+
+  updateMetadata();
+
+  return {
+    ____TYPE____: '[Tinytest]',
+    pid: test_runner.pid,
+    port: port
+  };
 };
 
 ServerEval.helpers.updateMetadata = function() {

@@ -16,6 +16,7 @@ in fact it checks for a ROOT_URL set to something on localhost and logs an error
      - __.eval(expression, options)__ calls "eval" function with the given expression and options:
           *    package: "your-package to use as scope",
           *    watch: true to create or update a watch,
+          *    ignore_size: true to ignore the 5MB result object limit
           *    autocomplete: true if eval for autocomplete, runs _.keys(expr),
           *    search: ... / eval with autocomplete true only return keys starting with this string
      - __.removeWatch(id)__ remove watch by id
