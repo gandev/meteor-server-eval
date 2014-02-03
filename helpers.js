@@ -59,20 +59,6 @@ findEval = function(package) {
   }
 };
 
-var addCancelTestsHelper = function(helper_name, pid, detached) {
-  ServerEval.helpers[helper_name] = function() {
-    try {
-      process.kill(pid);
-      if (detached) {
-        console.log('test runner closed');
-      }
-    } catch (e) {
-      console.log('test runner already closed or access denied');
-    }
-    delete ServerEval.helpers[helper_name];
-    updateMetadata();
-  };
-};
 
 updateMetadata = function(initial) {
   //gather metadata and publish them
@@ -92,9 +78,9 @@ updateMetadata = function(initial) {
     isLoggingActive = old_metadata.logging;
 
     _.each(old_metadata.helpers, function(helper) {
-      var helper_match = helper.match(/^cancel-tests.*-(\d*)/) || [];
-      if (helper_match.length === 2) {
-        addCancelTestsHelper(helper, parseInt(helper_match[1], 10), true);
+      var helper_match = helper.match(/^cancel-tests(.*)-(\d*)/) || [];
+      if (helper_match.length === 3) {
+        killTestRunner(parseInt(helper_match[2], 10));
       }
     });
   }
@@ -111,8 +97,6 @@ updateMetadata = function(initial) {
     project_path: project_path
   });
 };
-
-updateMetadata(true);
 
 createLogMessage = function(message, isError) {
   var message_obj;
@@ -156,6 +140,62 @@ createLogMessage = function(message, isError) {
   };
 })();
 
+var removeHelper = function(helper) {
+  delete ServerEval.helpers[helper];
+  updateMetadata();
+};
+
+var killTestRunner = function(pid, fail_log) {
+  if (!pid) return;
+
+  try {
+    process.kill(pid);
+  } catch (e) {
+    if (fail_log) {
+      console.log('test runner already closed or access denied');
+    }
+  }
+};
+
+var startTinytest = function(scope, port) {
+  var test_runner = child_process.spawn('meteor', ['test-packages', scope, port], {
+    cwd: project_path
+  });
+
+  test_runner.stdout.on('data', function(data) {
+    console.log(data.toString());
+  });
+
+  test_runner.stderr.on('data', function(data) {
+    console.error(data.toString());
+  });
+
+  var close_helper = 'cancel-tests' + (scope ? '-' + scope : '');
+  close_helper = close_helper + '-' + test_runner.pid;
+
+  var handleTestRunnerClose = Meteor.bindEnvironment(function(code) {
+    console.log('test runner closed');
+    removeHelper(close_helper);
+  }, function(err) {
+    console.log(err);
+  });
+
+  test_runner.on('close', handleTestRunnerClose);
+
+  var addCancelTestsHelper = function() {
+    ServerEval.helpers[close_helper] = function() {
+      killTestRunner(test_runner.pid, true);
+      removeHelper(close_helper);
+    };
+  };
+
+  addCancelTestsHelper();
+
+  return test_runner;
+};
+
+updateMetadata(true);
+
 //helper definitions
 
 ServerEval.helpers['test-packages'] = function(scope, args, callback) {
@@ -185,33 +225,7 @@ ServerEval.helpers['test-packages'] = function(scope, args, callback) {
     }
   });
 
-  var test_runner = child_process.spawn('meteor', ['test-packages', scope, port], {
-    cwd: project_path,
-    detached: true
-  });
-
-  test_runner.stdout.on('data', function(data) {
-    console.log(data.toString());
-  });
-
-  test_runner.stderr.on('data', function(data) {
-    console.log(data.toString());
-  });
-
-  var close_helper = 'cancel-tests' + (scope ? '-' + scope : '');
-  close_helper = close_helper + '-' + test_runner.pid;
-
-  var handleTestRunnerClose = Meteor.bindEnvironment(function(code) {
-    console.log('test runner closed');
-    delete ServerEval.helpers[close_helper];
-    updateMetadata();
-  }, function(err) {
-    console.log(err);
-  });
-
-  test_runner.on('close', handleTestRunnerClose);
-
-  addCancelTestsHelper(close_helper, test_runner.pid);
+  var test_runner = startTinytest(scope, port);
 
   updateMetadata();
 
