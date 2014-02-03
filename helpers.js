@@ -59,7 +59,6 @@ findEval = function(package) {
   }
 };
 
-
 updateMetadata = function(initial) {
   //gather metadata and publish them
   var packages = _.keys(Package);
@@ -80,9 +79,12 @@ updateMetadata = function(initial) {
     _.each(old_metadata.helpers, function(helper) {
       var helper_match = helper.match(/^cancel-tests(.*)-(\d*)/) || [];
       if (helper_match.length === 3) {
-        killTestRunner(parseInt(helper_match[2], 10));
+        //killTestRunner(parseInt(helper_match[2], 10));
+        addCancelTestsHelper(helper, helper_match[2]);
       }
     });
+
+    watchTestRunnerLog();
   }
 
   ServerEval._metadata.upsert({
@@ -150,46 +152,83 @@ var killTestRunner = function(pid, fail_log) {
 
   try {
     process.kill(pid);
+    console.log('test runner closed');
   } catch (e) {
     if (fail_log) {
-      console.log('test runner already closed or access denied');
+      console.error('test runner already closed or access denied');
     }
   }
 };
 
+var addCancelTestsHelper = function(close_helper, pid) {
+  ServerEval.helpers[close_helper] = function() {
+    killTestRunner(pid, true);
+    removeHelper(close_helper);
+  };
+};
+
+var stdout_file = path.join(executionPath('server-eval'), 'logs', 'test_runner.stdout');
+var stderr_file = path.join(executionPath('server-eval'), 'logs', 'test_runner.stderr');
+
+var readNewDataFromFile = function(file) {
+  return function(curr, prev) {
+    var new_data_length = curr.size - prev.size;
+    var new_data = new Buffer(new_data_length);
+    fs.open(file, 'r', function(err, fd) {
+      if (err) {
+        console.log('cannot open test runner log');
+      } else {
+        fs.read(fd, new_data, 0, new_data_length, prev.size, function(err, bytesRead, buffer) {
+          if (err) {
+            console.error('cannot read test runner log');
+          }
+          if (curr.mtime != prev.mtime) {
+            console.log(buffer.toString());
+          }
+        });
+      }
+    });
+  };
+};
+
+var stdout_watcher, stderr_watcher;
+
+var watchTestRunnerLog = function() {
+  fs.unwatchFile(stdout_file);
+  fs.unwatchFile(stderr_file);
+
+  fs.watchFile(stdout_file, {
+    interval: 1000
+  }, readNewDataFromFile(stdout_file));
+
+  fs.watchFile(stderr_file, {
+    interval: 1000
+  }, readNewDataFromFile(stderr_file));
+};
+
 var startTinytest = function(scope, port) {
+  //TODO don't asume server-eval package exists
+  //TODO clear log
+  var log_path = path.join(executionPath('server-eval'), 'logs');
+  if (!fs.existsSync(log_path)) {
+    fs.mkdirSync(log_path);
+  }
+
+  var test_runner_stdout = fs.openSync(stdout_file, 'a');
+  var test_runner_stderr = fs.openSync(stderr_file, 'a');
+
   var test_runner = child_process.spawn('meteor', ['test-packages', scope, port], {
-    cwd: project_path
+    cwd: project_path,
+    detached: true,
+    stdio: ['ignore', test_runner_stdout, test_runner_stderr]
   });
 
-  test_runner.stdout.on('data', function(data) {
-    console.log(data.toString());
-  });
-
-  test_runner.stderr.on('data', function(data) {
-    console.error(data.toString());
-  });
+  watchTestRunnerLog();
 
   var close_helper = 'cancel-tests' + (scope ? '-' + scope : '');
   close_helper = close_helper + '-' + test_runner.pid;
 
-  var handleTestRunnerClose = Meteor.bindEnvironment(function(code) {
-    console.log('test runner closed');
-    removeHelper(close_helper);
-  }, function(err) {
-    console.log(err);
-  });
-
-  test_runner.on('close', handleTestRunnerClose);
-
-  var addCancelTestsHelper = function() {
-    ServerEval.helpers[close_helper] = function() {
-      killTestRunner(test_runner.pid, true);
-      removeHelper(close_helper);
-    };
-  };
-
-  addCancelTestsHelper();
+  addCancelTestsHelper(close_helper, test_runner.pid);
 
   return test_runner;
 };
