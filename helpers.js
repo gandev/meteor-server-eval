@@ -207,8 +207,15 @@ var watchTestRunnerLog = function() {
 };
 
 var startTinytest = function(scope, port) {
-  //TODO don't asume server-eval package exists
-  //TODO clear log
+  try {
+    //TODO what if multiple tinytest instances
+    fs.unlinkSync(stdout_file);
+    fs.unlinkSync(stderr_file);
+  } catch (e) {
+    //dont care, log is already deleted
+  }
+
+  //TODO don't asume server-eval package exists!?
   var log_path = path.join(executionPath('server-eval'), 'logs');
   if (!fs.existsSync(log_path)) {
     fs.mkdirSync(log_path);
