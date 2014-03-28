@@ -85,6 +85,8 @@ updateMetadata = function(initial) {
     });
 
     watchTestRunnerLog();
+
+    //createPackageContent(old_metadata.create_package);
   }
 
   ServerEval._metadata.upsert({
@@ -240,14 +242,37 @@ var startTinytest = function(scope, port) {
   return test_runner;
 };
 
+var fs_mkdir = Meteor._wrapAsync(fs.mkdir);
+//var fs_open = Meteor._wrapAsync(fs.open);
+//var fs_close = Meteor._wrapAsync(fs.close);
+
+var createPackageContent = function (name) {
+  if(!name || name.length === 0) return;
+
+  var package_dir = path.join(project_path, 'packages', name);
+
+  if(!fs.existsSync(package_dir)) return;
+
+  console.log(package_dir);
+
+  var package_js = path.join(package_dir, 'package.js');
+  var package_js_stream = fs.createWriteStream(package_js);
+
+  package_js_stream.write('Package.describe({summary: "' + name + '"})');
+  package_js_stream.write('\n');
+  package_js_stream.write('Package.on_use(function(api) { \n\t"api.add_files(' + name + '.js);"\n});');
+  package_js_stream.end();
+
+  var source_js = path.join(package_dir, name + '.js');
+  var source_js_stream = fs.createWriteStream(source_js);
+
+  source_js_stream.write('//YOUR CODE HERE');
+  source_js_stream.end();
+};
+
 updateMetadata(true);
 
 //helper definitions
-
-var fs_mkdir = Meteor._wrapAsync(fs.mkdir);
-//var fs_open = Meteor._wrapAsync(fs.open);
-var fs_write_stream = Meteor._wrapAsync(fs.createWriteStream);
-//var fs_close = Meteor._wrapAsync(fs.close);
 
 ServerEval.helpers['add-package'] = function (scope, args, callback) {
   if(!args || args.length === 0 || args[0] === '') {
@@ -258,31 +283,27 @@ ServerEval.helpers['add-package'] = function (scope, args, callback) {
   }
 
   var name = args[0];
-
   var package_dir = path.join(project_path, 'packages', name);
+
+  //mark package for content creation after automatic server restart (because of mkdir)
+  ServerEval._metadata.update({
+    version: ServerEval.version
+  }, {'$set': {create_package: name}});
 
   try {
     fs_mkdir(package_dir);
+
+    createPackageContent(name);
   } catch(err) {
+    ServerEval._metadata.update({
+      version: ServerEval.version
+    }, {'$set': {create_package: null}});
+
     return {
       ____TYPE____: '[Error]',
       err: 'package ' + name + ' already exists!'
     };
   }
-
-  var package_js = path.join(package_dir, 'package.js');
-  var package_js_stream = fs_write_stream(package_js);
-
-  package_js_stream.write('Package.describe({summary: "' + name + '"})');
-  package_js_stream.write('\n');
-  package_js_stream.write('Package.on_use(function(api) { \n\t"api.add_files(' + name + '.js);"\n});');
-  package_js_stream.end();
-
-  var source_js = path.join(package_dir, name + '.js');
-  var source_js_stream = fs_write_stream(source_js);
-
-  source_js_stream.write('//YOUR CODE HERE');
-  source_js_stream.end();
 };
 
 ServerEval.helpers['test-package'] = function(scope, args, callback) {
