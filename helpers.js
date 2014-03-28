@@ -1,4 +1,6 @@
 var fs = Npm.require('fs');
+var fs_mkdir = Meteor._wrapAsync(fs.mkdir);
+
 var path = Npm.require('path');
 var child_process = Npm.require('child_process');
 var exec = child_process.exec;
@@ -240,11 +242,56 @@ var startTinytest = function(scope, port) {
   return test_runner;
 };
 
+var createPackageContent = function (name) {
+  if(!name || name.length === 0) return;
+
+  var package_dir = path.join(project_path, 'packages', name);
+
+  if(!fs.existsSync(package_dir)) return;
+
+  var package_js = path.join(package_dir, 'package.js');
+  var package_js_stream = fs.createWriteStream(package_js);
+
+  package_js_stream.write("Package.describe({summary: '" + name + " package'});");
+  package_js_stream.write('\n\n');
+  package_js_stream.write("Package.on_use(function(api) {\n\tapi.use('underscore');\n\n\tapi.add_files('" + name + ".js');\n});");
+  package_js_stream.end();
+
+  var source_js = path.join(package_dir, name + '.js');
+  var source_js_stream = fs.createWriteStream(source_js);
+
+  source_js_stream.write("console.log('" + name + " package loaded');");
+  source_js_stream.end();
+};
+
 updateMetadata(true);
 
 //helper definitions
 
-ServerEval.helpers['test-packages'] = function(scope, args, callback) {
+ServerEval.helpers['add-package'] = function (scope, args, callback) {
+  if(!args || args.length === 0 || args[0] === '') {
+    return {
+      ____TYPE____: '[Error]',
+      err: 'package name required!'
+    };
+  }
+
+  var name = args[0];
+  var package_dir = path.join(project_path, 'packages', name);
+
+  try {
+    fs_mkdir(package_dir);
+
+    createPackageContent(name);
+  } catch(err) {
+    return {
+      ____TYPE____: '[Error]',
+      err: 'package ' + name + ' already exists!'
+    };
+  }
+};
+
+ServerEval.helpers['test-package'] = function(scope, args, callback) {
   var port = '--port=5000';
   var nextIsPort = false;
   _.each(args || [], function(arg, idx) {
