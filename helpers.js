@@ -25,10 +25,8 @@ executeCommand = function(cmd, scope, args, callback) {
 
   arg = args || [];
   cmd = cmd + ' ' + args.join(' ');
-
-  exec(cmd, {
-    cwd: executionPath(scope)
-  }, function(err, stdout, stderr) {
+  
+  var wrapped_exec_callback = Meteor.bindEnvironment(function(err, stdout, stderr) {
     var err_result;
     if (err) {
       err_result = err;
@@ -48,7 +46,11 @@ executeCommand = function(cmd, scope, args, callback) {
         log: true
       });
     }
-  });
+  }, function(err) { console.log(err); });
+
+  exec(cmd, {
+    cwd: executionPath(scope)
+  }, wrapped_exec_callback);
 };
 
 //checks if eval function in package scope available
@@ -268,7 +270,7 @@ updateMetadata(true);
 
 //helper definitions
 
-ServerEval.helpers['add-package'] = function (scope, args, callback) {
+ServerEval.helpers['create-package'] = function (scope, args, callback) {
   if(!args || args.length === 0 || args[0] === '') {
     return {
       ____TYPE____: '[Error]',
