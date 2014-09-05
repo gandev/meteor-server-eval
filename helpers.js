@@ -1,20 +1,36 @@
 var fs = Npm.require('fs');
-var fs_mkdir = Meteor._wrapAsync(fs.mkdir);
 
 var path = Npm.require('path');
 var child_process = Npm.require('child_process');
 var exec = child_process.exec;
 
 var isLoggingActive = true;
-var project_path = path.join(process.cwd(), '..', '..', '..', '..', '..');
+var project_path = process.env.PWD;
 
-appName = function() {
-  return path.basename(project_path);
+var packageExists = function(name) {
+  var packagePath = path.join(project_path, 'packages', name);
+
+  return fs.existsSync(packagePath);
 };
 
 var executionPath = function(scope) {
-  var full_path = scope ? path.join(project_path, 'packages', scope) : project_path;
-  return fs.existsSync(full_path) ? full_path : project_path;
+  var full_path;
+  if (scope) {
+    full_path = path.join(project_path, 'packages', scope);
+
+    if (!packageExists(scope)) {
+      full_path = path.join(project_path, 'packages');
+      if (!fs.existsSync(full_path)) {
+        full_path = project_path;
+      }
+    }
+  }
+
+  return full_path;
+};
+
+appName = function() {
+  return path.basename(project_path);
 };
 
 executeCommand = function(cmd, scope, args, callback) {
@@ -25,7 +41,7 @@ executeCommand = function(cmd, scope, args, callback) {
 
   arg = args || [];
   cmd = cmd + ' ' + args.join(' ');
-  
+
   var wrapped_exec_callback = Meteor.bindEnvironment(function(err, stdout, stderr) {
     var err_result;
     if (err) {
@@ -46,7 +62,9 @@ executeCommand = function(cmd, scope, args, callback) {
         log: true
       });
     }
-  }, function(err) { console.log(err); });
+  }, function(err) {
+    console.log(err);
+  });
 
   exec(cmd, {
     cwd: executionPath(scope)
@@ -215,9 +233,7 @@ var startTinytest = function(scope, port) {
     //TODO what if multiple tinytest instances
     fs.unlinkSync(stdout_file);
     fs.unlinkSync(stderr_file);
-  } catch (e) {
-    //dont care, log is already deleted
-  }
+  } catch (e) { /*dont care, log is already deleted*/ }
 
   //TODO don't asume server-eval package exists!?
   var log_path = path.join(executionPath('server-eval'), 'logs');
@@ -244,34 +260,12 @@ var startTinytest = function(scope, port) {
   return test_runner;
 };
 
-var createPackageContent = function (name) {
-  if(!name || name.length === 0) return;
-
-  var package_dir = path.join(project_path, 'packages', name);
-
-  if(!fs.existsSync(package_dir)) return;
-
-  var package_js = path.join(package_dir, 'package.js');
-  var package_js_stream = fs.createWriteStream(package_js);
-
-  package_js_stream.write("Package.describe({summary: '" + name + " package'});");
-  package_js_stream.write('\n\n');
-  package_js_stream.write("Package.on_use(function(api) {\n\tapi.use('underscore');\n\n\tapi.add_files('" + name + ".js');\n});");
-  package_js_stream.end();
-
-  var source_js = path.join(package_dir, name + '.js');
-  var source_js_stream = fs.createWriteStream(source_js);
-
-  source_js_stream.write("console.log('" + name + " package loaded');");
-  source_js_stream.end();
-};
-
 updateMetadata(true);
 
 //helper definitions
 
-ServerEval.helpers['create-package'] = function (scope, args, callback) {
-  if(!args || args.length === 0 || args[0] === '') {
+ServerEval.helpers['create-package'] = function(scope, args, callback) {
+  if (!args || args.length === 0 || args[0] === '') {
     return {
       ____TYPE____: '[Error]',
       err: 'package name required!'
@@ -279,13 +273,14 @@ ServerEval.helpers['create-package'] = function (scope, args, callback) {
   }
 
   var name = args[0];
-  var package_dir = path.join(project_path, 'packages', name);
 
   try {
-    fs_mkdir(package_dir);
-
-    createPackageContent(name);
-  } catch(err) {
+    if (!packageExists(name)) {
+      executeCommand('meteor create --package ' + name, name, [], callback);
+    } else {
+      throw new Error();
+    }
+  } catch (err) {
     return {
       ____TYPE____: '[Error]',
       err: 'package ' + name + ' already exists!'
@@ -297,7 +292,7 @@ ServerEval.helpers['test-package'] = function(scope, args, callback) {
   var port = '--port=5000';
   var nextIsPort = false;
   _.each(args || [], function(arg, idx) {
-    var isPortCommand = !! arg.match(/^--port/);
+    var isPortCommand = !!arg.match(/^--port/);
     if (!isPortCommand && idx === 0 && arg.length > 0) {
       if (arg === '.') {
         scope = null; //used to start in whole app, even in package scope
