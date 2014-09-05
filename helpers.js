@@ -14,7 +14,7 @@ var packageExists = function(name) {
 };
 
 var executionPath = function(scope) {
-  var full_path;
+  var full_path = project_path;
   if (scope) {
     full_path = path.join(project_path, 'packages', scope);
 
@@ -189,8 +189,8 @@ var addCancelTestsHelper = function(close_helper, pid) {
   };
 };
 
-var stdout_file = path.join(executionPath('server-eval'), 'logs', 'test_runner.stdout');
-var stderr_file = path.join(executionPath('server-eval'), 'logs', 'test_runner.stderr');
+var stdout_file = path.join(project_path, 'tests', 'logs', 'test_runner.stdout');
+var stderr_file = path.join(project_path, 'tests', 'logs', 'test_runner.stderr');
 
 var readNewDataFromFile = function(file) {
   return function(curr, prev) {
@@ -235,8 +235,12 @@ var startTinytest = function(scope, port) {
     fs.unlinkSync(stderr_file);
   } catch (e) { /*dont care, log is already deleted*/ }
 
-  //TODO don't asume server-eval package exists!?
-  var log_path = path.join(executionPath('server-eval'), 'logs');
+  var log_path = path.join(project_path, 'tests');
+  if (!fs.existsSync(log_path)) {
+    fs.mkdirSync(log_path);
+  }
+
+  log_path = path.join(log_path, 'logs');
   if (!fs.existsSync(log_path)) {
     fs.mkdirSync(log_path);
   }

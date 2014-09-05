@@ -1,7 +1,7 @@
 Package.describe({
   name: "mrt:server-eval",
   summary: "allows client to run js in server context",
-  version: "0.6.0",
+  version: "0.6.1",
   git: "https://github.com/gandev/meteor-server-eval.git"
 });
 
