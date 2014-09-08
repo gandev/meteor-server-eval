@@ -1,5 +1,5 @@
 ServerEval = {
-  expectedClientVersion: "0.5",
+  version: "0.5",
   helpers: {},
   results: function() {
     return ServerEval._results.find({}, {

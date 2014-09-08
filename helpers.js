@@ -81,11 +81,78 @@ findEval = function(package) {
   }
 };
 
+var createTestPackageHelper = function(packageName) {
+  return function(args, callback) {
+    var port = '--port=5000';
+    var nextIsPort = false;
+    _.each(args || [], function(arg, idx) {
+      var isPortCommand = !!arg.match(/^--port/);
+
+      var arg_match = arg.match(/^--port=(\d*)/);
+      if (arg_match && arg_match.length === 2) {
+        port = arg;
+      } else if (nextIsPort) {
+        if (!isNaN(parseInt(arg, 10))) {
+          port = '--port=' + arg;
+        }
+        nextIsPort = false;
+      } else {
+        nextIsPort = isPortCommand;
+      }
+    });
+
+    var test_runner = startTinytest(packageName, port);
+
+    updateMetadata();
+
+    return {
+      ____TYPE____: '[Tinytest]',
+      pid: test_runner.pid,
+      port: parseInt(port.substr(7), 10)
+    };
+  };
+};
+
+var esprima = Npm.require('esprima');
+
 updateMetadata = function(initial) {
+  var packageFolder = path.join(project_path, 'packages');
+
   //gather metadata and publish them
-  var packages = _.keys(Package);
+  var packages = fs.readdirSync(packageFolder);
+
   packages = _.filter(packages, function(pkg) {
-    return fs.existsSync(path.join(project_path, 'packages', pkg));
+    return fs.statSync(path.join(packageFolder, pkg)).isDirectory();
+  });
+
+  packages = _.map(packages, function(pkg) {
+    var package_js = fs.readFileSync(path.join(packageFolder, pkg, 'package.js'));
+
+    var package_tree = esprima.parse(package_js);
+
+    var packageName;
+
+    _.each(package_tree.body || [], function(body_expr) {
+      if (body_expr.type === "ExpressionStatement") {
+        if (body_expr.expression.type === "CallExpression") {
+          var args = body_expr.expression.arguments;
+
+          _.each(args, function(arg) {
+            var props = arg.properties;
+
+            _.each(props, function(prop) {
+              if (prop.key.name === "name") {
+                packageName = prop.value.value;
+              }
+            });
+          });
+        }
+      }
+    });
+
+    packageName = packageName || pkg;
+
+    ServerEval.helpers['test-package-' + packageName] = createTestPackageHelper(packageName);
   });
 
   var supported_packages = _.filter(packages, function(pkg) {
@@ -102,7 +169,6 @@ updateMetadata = function(initial) {
     _.each(old_metadata.helpers, function(helper) {
       var helper_match = helper.match(/^cancel-tests(.*)-(\d*)/) || [];
       if (helper_match.length === 3) {
-        //killTestRunner(parseInt(helper_match[2], 10));
         addCancelTestsHelper(helper, helper_match[2]);
       }
     });
@@ -298,44 +364,6 @@ ServerEval.helpers['create-package'] = function(scope, args, callback) {
       err: 'package ' + name + ' already exists!'
     };
   }
-};
-
-ServerEval.helpers['test-package'] = function(scope, args, callback) {
-  var port = '--port=5000';
-  var nextIsPort = false;
-  _.each(args || [], function(arg, idx) {
-    var isPortCommand = !!arg.match(/^--port/);
-    if (!isPortCommand && idx === 0 && arg.length > 0) {
-      if (arg === '.') {
-        scope = null; //used to start in whole app, even in package scope
-      } else {
-        scope = arg;
-      }
-      return;
-    }
-
-    var arg_match = arg.match(/^--port=(\d*)/);
-    if (arg_match && arg_match.length === 2) {
-      port = arg;
-    } else if (nextIsPort) {
-      if (!isNaN(parseInt(arg, 10))) {
-        port = '--port=' + arg;
-      }
-      nextIsPort = false;
-    } else {
-      nextIsPort = isPortCommand;
-    }
-  });
-
-  var test_runner = startTinytest(scope, port);
-
-  updateMetadata();
-
-  return {
-    ____TYPE____: '[Tinytest]',
-    pid: test_runner.pid,
-    port: parseInt(port.substr(7), 10)
-  };
 };
 
 ServerEval.helpers.updateMetadata = function() {
