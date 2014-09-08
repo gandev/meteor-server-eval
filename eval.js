@@ -1,5 +1,5 @@
 ServerEval = {
-  version: "0.5", //TODO change to expectedClientVersion when meteor-console update
+  expectedClientVersion: "0.5",
   helpers: {},
   results: function() {
     return ServerEval._results.find({}, {

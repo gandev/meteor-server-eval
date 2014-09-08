@@ -95,6 +95,7 @@ updateMetadata = function(initial) {
   var old_metadata = ServerEval._metadata.findOne({
     version: ServerEval.version
   });
+
   if (initial && old_metadata) {
     isLoggingActive = old_metadata.logging;
 
@@ -122,7 +123,7 @@ updateMetadata = function(initial) {
   });
 };
 
-createLogMessage = function(message, isError) {
+createLogMessage = Meteor.bindEnvironment(function(logSource, message, isError) {
   var message_obj;
   try {
     message_obj = EJSON.parse(message);
@@ -135,10 +136,15 @@ createLogMessage = function(message, isError) {
   ServerEval._results.insert({
     eval_time: Date.now(),
     log: true,
+    logSource: logSource,
     err: isError,
     result: message_obj
   });
-};
+}, function(err) {
+  if (err) {
+    console.log(err);
+  }
+});
 
 (function redirectStderr() {
   var stderr = process.stderr;
@@ -147,7 +153,7 @@ createLogMessage = function(message, isError) {
     stderr_write.apply(stderr, arguments);
 
     if (isLoggingActive) {
-      createLogMessage(message, true);
+      createLogMessage('app', message, true);
     }
   };
 })();
@@ -159,7 +165,7 @@ createLogMessage = function(message, isError) {
     stdout_write.apply(stdout, arguments);
 
     if (isLoggingActive) {
-      createLogMessage(message);
+      createLogMessage('app', message);
     }
   };
 })();
@@ -174,10 +180,11 @@ var killTestRunner = function(pid, fail_log) {
 
   try {
     process.kill(pid);
-    console.log('test runner closed');
+
+    createLogMessage('tinytest', 'tinytest closed', true);
   } catch (e) {
     if (fail_log) {
-      console.error('test runner already closed or access denied');
+      createLogMessage('tinytest', 'tinytest already closed or access denied', true);
     }
   }
 };
@@ -192,20 +199,21 @@ var addCancelTestsHelper = function(close_helper, pid) {
 var stdout_file = path.join(project_path, 'tests', 'logs', 'test_runner.stdout');
 var stderr_file = path.join(project_path, 'tests', 'logs', 'test_runner.stderr');
 
-var readNewDataFromFile = function(file) {
+var readNewDataFromFile = function(file, isErrorLog) {
   return function(curr, prev) {
     var new_data_length = curr.size - prev.size;
     var new_data = new Buffer(new_data_length);
     fs.open(file, 'r', function(err, fd) {
       if (err) {
-        console.log('cannot open test runner log');
+        createLogMessage('tinytest', 'cannot open tinytest log', true);
       } else {
         fs.read(fd, new_data, 0, new_data_length, prev.size, function(err, bytesRead, buffer) {
           if (err) {
-            console.error('cannot read test runner log');
+            createLogMessage('tinytest', 'cannot read tinytest log', true);
           }
+
           if (curr.mtime != prev.mtime) {
-            console.log(buffer.toString());
+            createLogMessage('tinytest', buffer.toString(), isErrorLog);
           }
         });
       }
@@ -225,7 +233,7 @@ var watchTestRunnerLog = function() {
 
   fs.watchFile(stderr_file, {
     interval: 1000
-  }, readNewDataFromFile(stderr_file));
+  }, readNewDataFromFile(stderr_file, true));
 };
 
 var startTinytest = function(scope, port) {
