@@ -118,46 +118,52 @@ var esprima = Npm.require('esprima');
 updateMetadata = function(initial) {
   var packageFolder = path.join(project_path, 'packages');
 
-  //gather metadata and publish them
-  var packages = fs.readdirSync(packageFolder);
+  var packages = [];
+  var supported_packages = [];
 
-  packages = _.filter(packages, function(pkg) {
-    return fs.statSync(path.join(packageFolder, pkg)).isDirectory();
-  });
+  if (fs.existsSync(packageFolder)) {
 
-  packages = _.map(packages, function(pkg) {
-    var package_js = fs.readFileSync(path.join(packageFolder, pkg, 'package.js'));
+    //gather metadata and publish them
+    packages = fs.readdirSync(packageFolder);
 
-    var package_tree = esprima.parse(package_js);
-
-    var packageName;
-
-    _.each(package_tree.body || [], function(body_expr) {
-      if (body_expr.type === "ExpressionStatement") {
-        if (body_expr.expression.type === "CallExpression") {
-          var args = body_expr.expression.arguments;
-
-          _.each(args, function(arg) {
-            var props = arg.properties;
-
-            _.each(props, function(prop) {
-              if (prop.key.name === "name") {
-                packageName = prop.value.value;
-              }
-            });
-          });
-        }
-      }
+    packages = _.filter(packages, function(pkg) {
+      return fs.statSync(path.join(packageFolder, pkg)).isDirectory();
     });
 
-    packageName = packageName || pkg;
+    packages = _.map(packages, function(pkg) {
+      var package_js = fs.readFileSync(path.join(packageFolder, pkg, 'package.js'));
 
-    ServerEval.helpers['test-package-' + packageName] = createTestPackageHelper(packageName);
-  });
+      var package_tree = esprima.parse(package_js);
 
-  var supported_packages = _.filter(packages, function(pkg) {
-    return !!findEval(pkg);
-  });
+      var packageName;
+
+      _.each(package_tree.body || [], function(body_expr) {
+        if (body_expr.type === "ExpressionStatement") {
+          if (body_expr.expression.type === "CallExpression") {
+            var args = body_expr.expression.arguments;
+
+            _.each(args, function(arg) {
+              var props = arg.properties;
+
+              _.each(props, function(prop) {
+                if (prop.key.name === "name") {
+                  packageName = prop.value.value;
+                }
+              });
+            });
+          }
+        }
+      });
+
+      packageName = packageName || pkg;
+
+      ServerEval.helpers['test-package-' + packageName] = createTestPackageHelper(packageName);
+    });
+
+    supported_packages = _.filter(packages, function(pkg) {
+      return !!findEval(pkg);
+    });
+  }
 
   var old_metadata = ServerEval._metadata.findOne({
     version: ServerEval.version
