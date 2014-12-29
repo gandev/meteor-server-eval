@@ -1,11 +1,12 @@
 meteor-server-eval
 ==================
 
+    meteor add gandev:server-eval
+
 [meteor](http://www.meteor.com) smartpackage which provides a client api to evaluate expressions on a meteor server.
 This package was created to use with [meteor-server-console](https://github.com/gandev-de/meteor-server-console).
 
-server-eval is meant to be a development tool! Don't put it in production,
-in fact it checks for a ROOT_URL set to something on localhost and logs an error to remind you!
+server-eval is meant to be a development tool and therefore utilizes the debugOnly flag, so meteor doesn't put it in production!
 
 ### API
 
@@ -36,7 +37,7 @@ in fact it checks for a ROOT_URL set to something on localhost and logs an error
           Custom.__serverEval = function(expression) {
                return eval(expression);
           };
-          
+
      Custom has to be a arbitrary server api.export('...') in your package.js Package.on_use(function(api){})
 
 
