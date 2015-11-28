@@ -131,6 +131,8 @@ updateMetadata = function(initial) {
     });
 
     packages = _.map(packages, function(pkg) {
+      if (!fs.existsSync(path.join(packageFolder, pkg, 'package.js')))
+        return
       var package_js = fs.readFileSync(path.join(packageFolder, pkg, 'package.js'));
 
       var package_tree = esprima.parse(package_js);
